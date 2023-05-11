@@ -1,0 +1,28 @@
+[tool.poetry]
+name = "nido"
+version = "0.0.1"
+description = "Multifamily housing management platform"
+authors = ["John Arnold <code@iohannes.us>"]
+license = "AGPL-3.0-or-later"
+readme = "README.md"
+classifiers = [
+    "Private :: Do Not Upload"
+]
+
+[tool.poetry.dependencies]
+python = "^3.8"
+
+[tool.poetry.group.dev.dependencies]
+black = "^23.1.0"
+pytest = "^7.0.0"
+mypy = "^1.0.0"
+pre-commit = "^3.0.0"
+isort = "^5.12.0"
+
+[tool.isort]
+profile = "black"
+skip_gitignore = true
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
