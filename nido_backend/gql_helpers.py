@@ -42,10 +42,10 @@ def prepare_orm_query(column: Any, info: Info, cols: List[Any], rels: List[Any])
             .extensions["strawberry-definition"]
             .name
         )
-        sql_field = getattr(column, pyname)
-        if isinstance(sql_field.property, ColumnProperty):
+        sql_field = getattr(column, pyname, None)
+        if sql_field and isinstance(sql_field.property, ColumnProperty):
             cols.append(sql_field)
-        elif isinstance(sql_field.property, Relationship):
+        elif sql_field and isinstance(sql_field.property, Relationship):
             rels.append(sql_field)
             # XXX Recurse to filter child's fields
 

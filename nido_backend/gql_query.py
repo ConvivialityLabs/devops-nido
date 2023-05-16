@@ -20,24 +20,9 @@ import strawberry
 from sqlalchemy import select
 from strawberry.types import Info
 
-from .db_models import DBCommunity, DBContactMethod, DBEmailContact, DBUser
+from .db_models import DBCommunity, DBContactMethod, DBEmailContact, DBResidence, DBUser
 from .gql_helpers import encode_gql_id, prepare_orm_query
 from .gql_permissions import IsAuthenticated
-
-
-def get_users(
-    root: Optional["Community"],
-    info: Info,
-) -> Optional[List["User"]]:
-    if root:
-        return [User(db=u) for u in root.db.users]
-    else:
-        community_id = info.context["request"].cookies.get("community_id")
-        stmt = select(DBUser).where(DBUser.community_id == community_id)
-        opts = prepare_orm_query(DBUser, info, [], [])
-        stmt = stmt.options(*opts)
-        users = info.context["db_session"].scalars(stmt).all()
-        return [User(db=u) for u in users]
 
 
 @strawberry.type
@@ -52,7 +37,50 @@ class Community:
     def name(self) -> str:
         return self.db.name
 
-    users: Optional[List["User"]] = strawberry.field(resolver=get_users)
+    @strawberry.field
+    def residences(self) -> Optional[List["Residence"]]:
+        return [Residence(db=r) for r in self.db.residences]
+
+    @strawberry.field
+    def users(self) -> Optional[List["User"]]:
+        return [User(db=u) for u in self.db.users]
+
+
+@strawberry.type
+class Residence:
+    db: strawberry.Private[DBResidence]
+
+    @strawberry.field
+    def id(self) -> strawberry.ID:
+        return encode_gql_id(DBResidence.__tablename__, self.db.id)
+
+    @strawberry.field
+    def unit_no(self) -> Optional[str]:
+        return self.db.unit_no
+
+    @strawberry.field
+    def street(self) -> str:
+        return self.db.street
+
+    @strawberry.field
+    def locality(self) -> str:
+        return self.db.locality
+
+    @strawberry.field
+    def postcode(self) -> str:
+        return self.db.postcode
+
+    @strawberry.field
+    def region(self) -> str:
+        return self.db.region
+
+    @strawberry.field
+    def community(self) -> Optional[Community]:
+        return Community(db=self.db.community)
+
+    @strawberry.field
+    def occupants(self) -> Optional[List["User"]]:
+        return [User(db=u) for u in self.db.occupants]
 
 
 @strawberry.type
@@ -114,14 +142,24 @@ class EmailContact(ContactMethod):
 class Query:
     @strawberry.field(permission_classes=[IsAuthenticated])
     def active_user(self, info: Info) -> Optional[User]:
-        user_id = info.context["request"].cookies.get("user_id")
-        u = info.context["db_session"].get(DBUser, user_id)
-        return User(db=u)
+        try:
+            user_id = info.context["request"].cookies["user_id"]
+            stmt = select(DBUser).where(DBUser.id == user_id)
+            opts = prepare_orm_query(DBUser, info, [], [])
+            stmt = stmt.options(*opts)
+            u = info.context["db_session"].scalars(stmt).one()
+            return User(db=u)
+        except:
+            return None
 
     @strawberry.field(permission_classes=[IsAuthenticated])
-    def community(self, info: Info) -> Optional[Community]:
-        community_id = info.context["request"].cookies.get("community_id")
-        c = info.context["db_session"].get(DBCommunity, community_id)
-        return Community(db=c)
-
-    users: Optional[List["User"]] = strawberry.field(resolver=get_users)
+    def active_community(self, info: Info) -> Optional[Community]:
+        try:
+            community_id = info.context["request"].cookies["community_id"]
+            stmt = select(DBCommunity).where(DBCommunity.id == community_id)
+            opts = prepare_orm_query(DBCommunity, info, [], [])
+            stmt = stmt.options(*opts)
+            c = info.context["db_session"].scalars(stmt).one()
+            return Community(db=c)
+        except:
+            return None

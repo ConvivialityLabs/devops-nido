@@ -17,6 +17,7 @@
 import enum
 from typing import List, Optional
 
+import sqlalchemy.schema as sql_schema
 from sqlalchemy import Enum, ForeignKey, String
 from sqlalchemy.orm import (
     DeclarativeBase,
@@ -37,21 +38,70 @@ class DBCommunity(Base):
     id: Mapped[int] = mapped_column(primary_key=True, init=False, repr=False)
     name: Mapped[str]
 
-    users: Mapped[List["DBUser"]] = relationship(
+    residences: Mapped[List["DBResidence"]] = relationship(
         back_populates="community", init=False, repr=False
     )
+
+    users: Mapped[List["DBUser"]] = relationship(
+        secondary="residence_occupancy",
+        viewonly=True,
+        init=False,
+        repr=False,
+    )
+
+
+class DBResidence(Base):
+    __tablename__ = "residence"
+    __table_args__ = (sql_schema.UniqueConstraint("id", "community_id"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True, init=False, repr=False)
+    community_id: Mapped[int] = mapped_column(ForeignKey("community.id"))
+
+    unit_no: Mapped[Optional[str]]
+    street: Mapped[str]
+    locality: Mapped[str]
+    postcode: Mapped[str]
+    region: Mapped[str]
+
+    community: Mapped[DBCommunity] = relationship(
+        back_populates="residences", init=False, repr=False
+    )
+    occupants: Mapped[List["DBUser"]] = relationship(
+        secondary="residence_occupancy",
+        back_populates="residences",
+        init=False,
+        repr=False,
+    )
+
+
+class DBResidenceOccupancy(Base):
+    __tablename__ = "residence_occupancy"
+    __table_args__ = (
+        sql_schema.ForeignKeyConstraint(
+            ["residence_id", "community_id"],
+            ["residence.id", "residence.community_id"],
+        ),
+    )
+
+    community_id: Mapped[int] = mapped_column(
+        ForeignKey("community.id"), primary_key=True
+    )
+    residence_id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("user.id"), primary_key=True)
 
 
 class DBUser(Base):
     __tablename__ = "user"
 
     id: Mapped[int] = mapped_column(primary_key=True, init=False, repr=False)
-    community_id: Mapped[int] = mapped_column(ForeignKey("community.id"))
     personal_name: Mapped[str]
     family_name: Mapped[str]
 
-    community: Mapped[DBCommunity] = relationship(
-        back_populates="users", init=False, repr=False
+    residences: Mapped[List[DBResidence]] = relationship(
+        secondary="residence_occupancy",
+        back_populates="occupants",
+        init=False,
+        repr=False,
     )
     contact_methods: Mapped[List["DBContactMethod"]] = relationship(
         back_populates="user", init=False, repr=False

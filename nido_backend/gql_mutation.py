@@ -18,7 +18,13 @@ import strawberry
 from sqlalchemy import delete, select
 from strawberry.types import Info
 
-from .db_models import DBCommunity, DBContactMethod, DBEmailContact, DBUser
+from .db_models import (
+    DBCommunity,
+    DBContactMethod,
+    DBEmailContact,
+    DBResidenceOccupancy,
+    DBUser,
+)
 from .gql_helpers import decode_gql_id
 from .gql_permissions import IsAuthenticated
 
@@ -28,11 +34,13 @@ class Authentication:
     @strawberry.mutation
     def login(self, info: Info, email: str) -> bool:
         stmt = (
-            select(DBEmailContact.user_id, DBUser.community_id)
-            .join(DBUser)
+            select(DBEmailContact.user_id, DBResidenceOccupancy.community_id)
+            .join(DBUser, DBUser.id == DBEmailContact.user_id)
+            .join(DBResidenceOccupancy, DBResidenceOccupancy.user_id == DBUser.id)
             .where(DBEmailContact.email == email)
         )
         try:
+            # XXX It is possible for a user to belong to multiple communities; what to do?
             (user_id, community_id) = info.context["db_session"].execute(stmt).one()
             info.context["response"].set_cookie(key="user_id", value=user_id)
             info.context["response"].set_cookie(key="community_id", value=community_id)
