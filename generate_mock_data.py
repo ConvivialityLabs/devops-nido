@@ -2,7 +2,13 @@
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 
-from nido_backend.db_models import DBCommunity, DBEmailContact, DBResidence, DBUser
+from nido_backend.db_models import (
+    DBCommunity,
+    DBEmailContact,
+    DBGroup,
+    DBResidence,
+    DBUser,
+)
 
 
 def td(a1, a2, b1, b2, c1, c2):
@@ -1870,6 +1876,19 @@ def seed_db(db_session):
     for cm in contact_methods:
         db_session.add(cm)
     db_session.commit()
+
+    for c in communities:
+        top_group = DBGroup(community_id=c.id, name="Board of Directors")
+        db_session.add(top_group)
+        db_session.flush()
+        top_group.managing_group_id = top_group.id
+        top_group.custom_members.extend(c.users[0:6])
+        president = DBGroup(community_id=c.id, name="President")
+        president.managing_group_id = top_group.id
+        president.custom_members.append(c.users[0])
+        db_session.add(top_group)
+        db_session.add(president)
+        db_session.commit()
 
 
 if __name__ == "__main__":

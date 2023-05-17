@@ -14,14 +14,20 @@
 #  You should have received a copy of the GNU Affero General Public License
 #  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+from typing import List, Optional
+
 import strawberry
-from sqlalchemy import delete, select
+from sqlalchemy import delete, select, update
+from sqlalchemy.orm import noload
 from strawberry.types import Info
 
+from .authorization import oso
 from .db_models import (
     DBCommunity,
     DBContactMethod,
     DBEmailContact,
+    DBGroup,
+    DBGroupMembership,
     DBResidenceOccupancy,
     DBUser,
 )
@@ -83,9 +89,88 @@ class ContactMethodMutations:
             return False
 
 
+@strawberry.input
+class NewGroupInput:
+    name: str
+    custom_members: Optional[List[strawberry.ID]] = None
+    managing_group: Optional[strawberry.ID] = None
+
+
+@strawberry.input
+class RenameGroupInput:
+    group: strawberry.ID
+    name: str
+
+
+@strawberry.input
+class DeleteGroupInput:
+    group: strawberry.ID
+
+
+@strawberry.type
+class GroupMutations:
+    @strawberry.mutation(permission_classes=[IsAuthenticated])
+    def new_group(self, info: Info, input: List[NewGroupInput]) -> bool:
+        user_id = info.context["request"].cookies["user_id"]
+        community_id = info.context["request"].cookies["community_id"]
+        for i in input:
+            if i.managing_group:
+                managing_id = decode_gql_id(i.managing_group)[1]
+                ng = DBGroup(name=i.name, community_id=community_id)
+                ng.managing_group_id = managing_id
+                info.context["db_session"].add(ng)
+            else:
+                ng = DBGroup(name=i.name, community_id=community_id)
+                info.context["db_session"].add(ng)
+                info.context["db_session"].flush()
+                ng.managing_group_id = ng.id
+                info.context["db_session"].add(ng)
+            if i.custom_members:
+                for mem_id in i.custom_members:
+                    entry = DBGroupMembership(
+                        user_id=decode_gql_id(mem_id)[1],
+                        community_id=community_id,
+                        group_id=ng.id,
+                    )
+                    info.context["db_session"].add(entry)
+            else:
+                entry = DBGroupMembership(
+                    user_id=user_id, community_id=community_id, group_id=ng.id
+                )
+                info.context["db_session"].add(entry)
+
+        info.context["db_session"].commit()
+        return True
+
+    @strawberry.mutation(permission_classes=[IsAuthenticated])
+    def rename_group(self, info: Info, input: List[RenameGroupInput]) -> bool:
+        user_id = info.context["request"].cookies["user_id"]
+        user = info.context["db_session"].get(DBUser, user_id)
+        for i in input:
+            group = info.context["db_session"].get(DBGroup, decode_gql_id(i.group)[1])
+            oso.authorize(user, "update", group)
+            stmt = update(DBGroup).where(DBGroup.id == group.id).values(name=i.name)
+            info.context["db_session"].execute(stmt)
+        info.context["db_session"].commit()
+        return True
+
+    @strawberry.mutation(permission_classes=[IsAuthenticated])
+    def delete_group(self, info: Info, input: List[DeleteGroupInput]) -> bool:
+        user_id = info.context["request"].cookies["user_id"]
+        user = info.context["db_session"].get(DBUser, user_id)
+        for i in input:
+            group = info.context["db_session"].get(DBGroup, decode_gql_id(i.group)[1])
+            oso.authorize(user, "delete", group)
+            stmt = delete(DBGroup).where(DBGroup.id == group.id)
+            info.context["db_session"].execute(stmt)
+        info.context["db_session"].commit()
+        return True
+
+
 @strawberry.type
 class Mutation:
     authentication: Authentication = strawberry.field(resolver=lambda: Authentication())
     contact_methods: ContactMethodMutations = strawberry.field(
         resolver=lambda: ContactMethodMutations()
     )
+    groups: GroupMutations = strawberry.field(resolver=lambda: GroupMutations())

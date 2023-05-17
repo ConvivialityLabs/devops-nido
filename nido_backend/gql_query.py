@@ -20,7 +20,14 @@ import strawberry
 from sqlalchemy import select
 from strawberry.types import Info
 
-from .db_models import DBCommunity, DBContactMethod, DBEmailContact, DBResidence, DBUser
+from .db_models import (
+    DBCommunity,
+    DBContactMethod,
+    DBEmailContact,
+    DBGroup,
+    DBResidence,
+    DBUser,
+)
 from .gql_helpers import encode_gql_id, prepare_orm_query
 from .gql_permissions import IsAuthenticated
 
@@ -40,6 +47,10 @@ class Community:
     @strawberry.field
     def residences(self) -> Optional[List["Residence"]]:
         return [Residence(db=r) for r in self.db.residences]
+
+    @strawberry.field
+    def groups(self) -> Optional[List["Group"]]:
+        return [Group(db=g) for g in self.db.groups]
 
     @strawberry.field
     def users(self) -> Optional[List["User"]]:
@@ -114,6 +125,35 @@ class User:
             for cm in self.db.contact_methods
             if isinstance(cm, DBEmailContact)
         ]
+
+
+@strawberry.type
+class Group:
+    db: strawberry.Private[DBGroup]
+
+    @strawberry.field
+    def id(self) -> strawberry.ID:
+        return encode_gql_id(DBGroup.__tablename__, self.db.id)
+
+    @strawberry.field
+    def name(self) -> str:
+        return self.db.name
+
+    @strawberry.field
+    def community(self) -> Optional[Community]:
+        return Community(db=self.db.community)
+
+    @strawberry.field
+    def managed_by(self) -> Optional["Group"]:
+        return Group(db=self.db.managed_by)
+
+    @strawberry.field
+    def manages(self) -> Optional[List["Group"]]:
+        return [Group(db=g) for g in self.db.manages]
+
+    @strawberry.field
+    def custom_members(self) -> Optional[List[User]]:
+        return [User(db=u) for u in self.db.custom_members]
 
 
 @strawberry.interface

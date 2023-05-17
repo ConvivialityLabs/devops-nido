@@ -41,7 +41,9 @@ class DBCommunity(Base):
     residences: Mapped[List["DBResidence"]] = relationship(
         back_populates="community", init=False, repr=False
     )
-
+    groups: Mapped[List["DBGroup"]] = relationship(
+        back_populates="community", viewonly=True, init=False, repr=False
+    )
     users: Mapped[List["DBUser"]] = relationship(
         secondary="residence_occupancy",
         viewonly=True,
@@ -105,6 +107,79 @@ class DBUser(Base):
     )
     contact_methods: Mapped[List["DBContactMethod"]] = relationship(
         back_populates="user", init=False, repr=False
+    )
+
+
+class DBGroup(Base):
+    __tablename__ = "group"
+    __table_args__ = (
+        sql_schema.UniqueConstraint("id", "community_id"),
+        sql_schema.UniqueConstraint("community_id", "name"),
+        sql_schema.ForeignKeyConstraint(
+            ["managing_group_id", "community_id"],
+            ["group.id", "group.community_id"],
+            # DEFERRABLE INITIALLY DEFERRED is necessary in sqlite for defered
+            # enforcement of this foreign key constraint. Defered enforcement
+            # is needed to correctly build the row when a group manages itself.
+            deferrable=True,
+            initially="DEFERRED",
+            # Use ON DELETE SET DEFAULT with nonsense defaults in the columns.
+            # ON DELETE CASCADE is the wrong behavior; we don't want users
+            # unthinkingly deleting a parent group and unintentionally deleting
+            # all child groups.
+            # ON DELETE RESTRICT and ON DELETE SET NULL don't work well with
+            # rows that self-reference.
+            ondelete="SET DEFAULT",
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True, init=False, repr=False)
+    community_id: Mapped[int] = mapped_column(
+        ForeignKey("community.id"), server_default="0"
+    )
+    managing_group_id: Mapped[int] = mapped_column(server_default="0", init=False)
+
+    name: Mapped[str]
+
+    community: Mapped[DBCommunity] = relationship(
+        back_populates="groups", viewonly=True, init=False, repr=False
+    )
+    managed_by: Mapped["DBGroup"] = relationship(
+        back_populates="manages",
+        remote_side=[id, community_id],
+        passive_deletes="all",
+        init=False,
+        repr=False,
+    )
+    manages: Mapped[List["DBGroup"]] = relationship(
+        back_populates="managed_by",
+        passive_deletes="all",
+        init=False,
+        repr=False,
+    )
+    custom_members: Mapped[List[DBUser]] = relationship(
+        secondary="group_membership",
+        init=False,
+        repr=False,
+    )
+
+
+class DBGroupMembership(Base):
+    __tablename__ = "group_membership"
+    __table_args__ = (
+        sql_schema.ForeignKeyConstraint(
+            ["group_id", "community_id"],
+            ["group.id", "group.community_id"],
+            ondelete="CASCADE",
+        ),
+    )
+
+    community_id: Mapped[int] = mapped_column(
+        ForeignKey("community.id"), primary_key=True
+    )
+    group_id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(
+        ForeignKey("user.id", ondelete="CASCADE"), primary_key=True
     )
 
 
