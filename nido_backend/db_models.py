@@ -57,7 +57,9 @@ class DBResidence(Base):
     __table_args__ = (sql_schema.UniqueConstraint("id", "community_id"),)
 
     id: Mapped[int] = mapped_column(primary_key=True, init=False, repr=False)
-    community_id: Mapped[int] = mapped_column(ForeignKey("community.id"))
+    community_id: Mapped[int] = mapped_column(
+        ForeignKey("community.id", ondelete="CASCADE")
+    )
 
     unit_no: Mapped[Optional[str]]
     street: Mapped[str]
@@ -82,14 +84,22 @@ class DBResidenceOccupancy(Base):
         sql_schema.ForeignKeyConstraint(
             ["residence_id", "community_id"],
             ["residence.id", "residence.community_id"],
+            ondelete="RESTRICT",
         ),
     )
+    # CASCADE when community is deleted, because deleting the community can
+    # only mean that they are no longer interested in using the service. But
+    # if a residence known to have occupants is deleted, what does that mean?
+    # Unclear, so RESTRICT and have the programmer delete the occupancy first
+    # if the deletion is intentional. Same reason for user_id RESTRICT.
 
     community_id: Mapped[int] = mapped_column(
-        ForeignKey("community.id"), primary_key=True
+        ForeignKey("community.id", ondelete="CASCADE"), primary_key=True
     )
     residence_id: Mapped[int] = mapped_column(primary_key=True)
-    user_id: Mapped[int] = mapped_column(ForeignKey("user.id"), primary_key=True)
+    user_id: Mapped[int] = mapped_column(
+        ForeignKey("user.id", ondelete="RESTRICT"), primary_key=True
+    )
 
 
 class DBUser(Base):
@@ -135,7 +145,7 @@ class DBGroup(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True, init=False, repr=False)
     community_id: Mapped[int] = mapped_column(
-        ForeignKey("community.id"), server_default="0"
+        ForeignKey("community.id", ondelete="CASCADE"), server_default="0"
     )
     managing_group_id: Mapped[int] = mapped_column(server_default="0", init=False)
 
@@ -175,7 +185,7 @@ class DBGroupMembership(Base):
     )
 
     community_id: Mapped[int] = mapped_column(
-        ForeignKey("community.id"), primary_key=True
+        ForeignKey("community.id", ondelete="CASCADE"), primary_key=True
     )
     group_id: Mapped[int] = mapped_column(primary_key=True)
     user_id: Mapped[int] = mapped_column(
@@ -191,7 +201,7 @@ class DBContactMethod(Base):
     __tablename__ = "contact_method"
 
     id: Mapped[int] = mapped_column(primary_key=True, init=False, repr=False)
-    user_id: Mapped[int] = mapped_column(ForeignKey("user.id"))
+    user_id: Mapped[int] = mapped_column(ForeignKey("user.id", ondelete="CASCADE"))
     type: Mapped[ContactType] = mapped_column(init=False, repr=False)
 
     user: Mapped[DBUser] = relationship(
