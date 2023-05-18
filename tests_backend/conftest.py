@@ -2,9 +2,25 @@ import pytest
 from sqlalchemy import create_engine, event
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session, scoped_session, sessionmaker
+from strawberry import Schema
 
 from generate_mock_data import seed_db
 from nido_backend.db_models import Base
+from nido_backend.main import DBSessionExtension, EmailContact, Mutation, Query
+
+
+class TestSchema(Schema):
+    def __init__(self, db_session, *args, **kwargs):
+        self.db_session = db_session
+        super().__init__(*args, **kwargs)
+
+    def execute_sync(
+        self, query, variable_values=None, context_value={}, *args, **kwargs
+    ):
+        context_value["db_session"] = self.db_session
+        return super().execute_sync(
+            query, variable_values, context_value, *args, **kwargs
+        )
 
 
 @event.listens_for(Engine, "connect")
@@ -33,5 +49,19 @@ def db_session(db_engine):
 
     yield scoped_session(sessionmaker(autoflush=False, bind=connection))
 
+    # If the line below changes its line number, it will start raising
+    # warnings. Update pyproject.toml to silence.
     transaction.rollback()
     connection.close()
+
+
+@pytest.fixture(scope="function")
+def test_schema(db_session):
+    schema = TestSchema(
+        db_session=db_session,
+        query=Query,
+        mutation=Mutation,
+        types=[EmailContact],
+        extensions=[DBSessionExtension],
+    )
+    return schema
