@@ -1,4 +1,4 @@
-#  Nido gql_mutation.py
+#  Nido gql_errors.py
 #  Copyright (C) John Arnold
 #
 #  This program is free software: you can redistribute it and/or modify
@@ -14,17 +14,22 @@
 #  You should have received a copy of the GNU Affero General Public License
 #  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+from typing import Optional
+
 import strawberry
 
-from .gql_mutation_authentication import Authentication
-from .gql_mutation_contact_method import ContactMethodMutations
-from .gql_mutation_group import GroupMutations
+
+@strawberry.interface
+class Error:
+    message: str
+    source: Optional["Error"] = None
 
 
 @strawberry.type
-class Mutation:
-    authentication: Authentication = strawberry.field(resolver=lambda: Authentication())
-    contact_methods: ContactMethodMutations = strawberry.field(
-        resolver=lambda: ContactMethodMutations()
-    )
-    groups: GroupMutations = strawberry.field(resolver=lambda: GroupMutations())
+class DummyError(Error):
+    message: str = "Error"
+
+
+@strawberry.type
+class Unauthorized(Error):
+    message: str = "Unauthorized"
