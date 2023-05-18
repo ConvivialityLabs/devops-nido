@@ -15,27 +15,47 @@
 #  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import os
+from typing import Any, Optional, Union
 
 import strawberry
-from sqlalchemy import create_engine
+from sqlalchemy import Engine, create_engine
 from sqlalchemy.orm import scoped_session, sessionmaker
-from strawberry.asgi import GraphQL
+from strawberry.asgi import GraphQL, Request, Response, WebSocket
 from strawberry.extensions import SchemaExtension
 
 from .gql_mutation import Mutation
 from .gql_query import EmailContact, Query
 
 
+class GraphQLWithDB(GraphQL):
+    def __init__(self, db_engine: Engine, *args, **kwargs) -> None:
+        self.Session = scoped_session(sessionmaker(db_engine))
+        super().__init__(*args, **kwargs)
+
+    async def get_context(
+        self, request: Union[Request, WebSocket], response: Optional[Response] = None
+    ) -> Any:
+        return {
+            "db_session": self.Session,
+            "request": request,
+            "response": response,
+            "user_id": request.cookies.get("user_id"),
+            "community_id": request.cookies.get("community_id"),
+        }
+
+
+class DBSessionExtension(SchemaExtension):
+    def on_operation(self):
+        yield
+        self.execution_context.context["db_session"].remove()
+
+
 def create_app():
     db_engine = create_engine(os.environ["DATABASE_URL"], echo=True)
-    Session = scoped_session(sessionmaker(db_engine))
-
-    class MyExtension(SchemaExtension):
-        def on_operation(self):
-            self.execution_context.context["db_session"] = Session()
-            yield
-
     schema = strawberry.Schema(
-        query=Query, mutation=Mutation, types=[EmailContact], extensions=[MyExtension]
+        query=Query,
+        mutation=Mutation,
+        types=[EmailContact],
+        extensions=[DBSessionExtension],
     )
-    return GraphQL(schema)
+    return GraphQLWithDB(db_engine, schema)

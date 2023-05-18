@@ -24,8 +24,7 @@ class IsAuthenticated(BasePermission):
     message = "User is not authenticated"
 
     def has_permission(self, source: Any, info: Info, **kwargs) -> bool:
-        cookies = info.context["request"].cookies
-        if "user_id" in cookies:
+        if info.context.get("user_id"):
             return True
         else:
             return False

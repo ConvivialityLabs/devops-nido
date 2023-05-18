@@ -68,8 +68,8 @@ class DeleteGroupPayload:
 class GroupMutations:
     @strawberry.mutation(permission_classes=[IsAuthenticated])
     def new(self, info: Info, input: List[NewGroupInput]) -> NewGroupPayload:
-        user_id = info.context["request"].cookies["user_id"]
-        community_id = info.context["request"].cookies["community_id"]
+        user_id = info.context["user_id"]
+        community_id = info.context["community_id"]
         for i in input:
             if i.managing_group:
                 managing_id = decode_gql_id(i.managing_group)[1]
@@ -107,7 +107,7 @@ class GroupMutations:
     @strawberry.mutation(permission_classes=[IsAuthenticated])
     def rename(self, info: Info, input: List[RenameGroupInput]) -> RenameGroupPayload:
         errors: List[Error] = []
-        user_id = info.context["request"].cookies["user_id"]
+        user_id = info.context["user_id"]
         user = info.context["db_session"].get(DBUser, user_id)
         for i in input:
             group = info.context["db_session"].get(DBGroup, decode_gql_id(i.group)[1])
@@ -123,7 +123,7 @@ class GroupMutations:
     @strawberry.mutation(permission_classes=[IsAuthenticated])
     def delete(self, info: Info, input: List[DeleteGroupInput]) -> DeleteGroupPayload:
         errors: List[Error] = []
-        user_id = info.context["request"].cookies["user_id"]
+        user_id = info.context["user_id"]
         user = info.context["db_session"].get(DBUser, user_id)
         for i in input:
             group = info.context["db_session"].get(DBGroup, decode_gql_id(i.group)[1])
