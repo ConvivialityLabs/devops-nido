@@ -68,23 +68,23 @@ class DeleteGroupPayload:
 class GroupMutations:
     @strawberry.mutation(permission_classes=[IsAuthenticated])
     def new(self, info: Info, input: List[NewGroupInput]) -> NewGroupPayload:
-        user_id = info.context["user_id"]
-        community_id = info.context["community_id"]
+        user_id = info.context.user_id
+        community_id = info.context.community_id
         for i in input:
             if i.managing_group:
                 managing_id = decode_gql_id(i.managing_group)[1]
                 ng = DBGroup(name=i.name, community_id=community_id)
                 ng.managing_group_id = managing_id
-                info.context["db_session"].add(ng)
+                info.context.db_session.add(ng)
             else:
                 ng = DBGroup(name=i.name, community_id=community_id)
-                info.context["db_session"].add(ng)
+                info.context.db_session.add(ng)
                 try:
-                    info.context["db_session"].flush()
+                    info.context.db_session.flush()
                 except:
                     pass
                 ng.managing_group_id = ng.id
-                info.context["db_session"].add(ng)
+                info.context.db_session.add(ng)
             if i.custom_members:
                 for mem_id in i.custom_members:
                     entry = DBGroupMembership(
@@ -92,14 +92,14 @@ class GroupMutations:
                         community_id=community_id,
                         group_id=ng.id,
                     )
-                    info.context["db_session"].add(entry)
+                    info.context.db_session.add(entry)
             else:
                 entry = DBGroupMembership(
                     user_id=user_id, community_id=community_id, group_id=ng.id
                 )
-                info.context["db_session"].add(entry)
+                info.context.db_session.add(entry)
                 try:
-                    info.context["db_session"].commit()
+                    info.context.db_session.commit()
                 except:
                     pass
         return NewGroupPayload()
@@ -107,32 +107,32 @@ class GroupMutations:
     @strawberry.mutation(permission_classes=[IsAuthenticated])
     def rename(self, info: Info, input: List[RenameGroupInput]) -> RenameGroupPayload:
         errors: List[Error] = []
-        user_id = info.context["user_id"]
-        user = info.context["db_session"].get(DBUser, user_id)
+        user_id = info.context.user_id
+        user = info.context.db_session.get(DBUser, user_id)
         for i in input:
-            group = info.context["db_session"].get(DBGroup, decode_gql_id(i.group)[1])
+            group = info.context.db_session.get(DBGroup, decode_gql_id(i.group)[1])
             try:
                 oso.authorize(user, "update", group)
             except:
                 errors.append(Unauthorized())
             stmt = update(DBGroup).where(DBGroup.id == group.id).values(name=i.name)
-            info.context["db_session"].execute(stmt)
-        info.context["db_session"].commit()
+            info.context.db_session.execute(stmt)
+        info.context.db_session.commit()
         return RenameGroupPayload(errors=errors)
 
     @strawberry.mutation(permission_classes=[IsAuthenticated])
     def delete(self, info: Info, input: List[DeleteGroupInput]) -> DeleteGroupPayload:
         errors: List[Error] = []
-        user_id = info.context["user_id"]
-        user = info.context["db_session"].get(DBUser, user_id)
+        user_id = info.context.user_id
+        user = info.context.db_session.get(DBUser, user_id)
         for i in input:
-            group = info.context["db_session"].get(DBGroup, decode_gql_id(i.group)[1])
+            group = info.context.db_session.get(DBGroup, decode_gql_id(i.group)[1])
             try:
                 oso.authorize(user, "delete", group)
             except:
                 errors.append(Unauthorized())
             stmt = delete(DBGroup).where(DBGroup.id == group.id)
-            info.context["db_session"].execute(stmt)
+            info.context.db_session.execute(stmt)
 
-        info.context["db_session"].commit()
+        info.context.db_session.commit()
         return DeleteGroupPayload(errors=errors)

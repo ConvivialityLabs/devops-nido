@@ -28,7 +28,7 @@ isort = "^5.12.0"
 [tool.pytest.ini_options]
 filterwarnings = [
     # backend_tests/conftest.py transaction.rollback()
-    "ignore::sqlalchemy.exc.SAWarning::54",
+    "ignore::sqlalchemy.exc.SAWarning::58",
 ]
 
 [tool.mypy]

@@ -24,7 +24,7 @@ class IsAuthenticated(BasePermission):
     message = "User is not authenticated"
 
     def has_permission(self, source: Any, info: Info, **kwargs) -> bool:
-        if info.context.get("user_id"):
+        if info.context.user_id:
             return True
         else:
             return False

@@ -183,11 +183,11 @@ class Query:
     @strawberry.field(permission_classes=[IsAuthenticated])
     def active_user(self, info: Info) -> Optional[User]:
         try:
-            user_id = info.context["user_id"]
+            user_id = info.context.user_id
             stmt = select(DBUser).where(DBUser.id == user_id)
             opts = prepare_orm_query(DBUser, info, [], [])
             stmt = stmt.options(*opts)
-            u = info.context["db_session"].scalars(stmt).one()
+            u = info.context.db_session.scalars(stmt).one()
             return User(db=u)
         except:
             return None
@@ -195,11 +195,11 @@ class Query:
     @strawberry.field(permission_classes=[IsAuthenticated])
     def active_community(self, info: Info) -> Optional[Community]:
         try:
-            community_id = info.context["community_id"]
+            community_id = info.context.community_id
             stmt = select(DBCommunity).where(DBCommunity.id == community_id)
             opts = prepare_orm_query(DBCommunity, info, [], [])
             stmt = stmt.options(*opts)
-            c = info.context["db_session"].scalars(stmt).one()
+            c = info.context.db_session.scalars(stmt).one()
             return Community(db=c)
         except:
             return None

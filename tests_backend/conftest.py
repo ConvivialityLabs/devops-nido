@@ -6,7 +6,13 @@ from strawberry import Schema
 
 from generate_mock_data import seed_db
 from nido_backend.db_models import Base
-from nido_backend.main import DBSessionExtension, EmailContact, Mutation, Query
+from nido_backend.main import (
+    DBSessionExtension,
+    EmailContact,
+    Mutation,
+    Query,
+    SchemaContext,
+)
 
 
 class TestSchema(Schema):
@@ -17,10 +23,8 @@ class TestSchema(Schema):
     def execute_sync(
         self, query, variable_values=None, context_value={}, *args, **kwargs
     ):
-        context_value["db_session"] = self.db_session
-        return super().execute_sync(
-            query, variable_values, context_value, *args, **kwargs
-        )
+        context = SchemaContext(self.db_session, **context_value)
+        return super().execute_sync(query, variable_values, context, *args, **kwargs)
 
 
 @event.listens_for(Engine, "connect")

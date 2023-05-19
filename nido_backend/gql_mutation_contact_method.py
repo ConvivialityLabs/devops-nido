@@ -57,24 +57,24 @@ class ContactMethodMutations:
         email_contacts: List[EmailContact] = []
         errors: List[Error] = []
 
-        user_id = info.context["user_id"]
+        user_id = info.context.user_id
         for i in input:
             new_contact = DBEmailContact(user_id=user_id, email=i.email)
-            info.context["db_session"].add(new_contact)
+            info.context.db_session.add(new_contact)
             try:
-                info.context["db_session"].commit()
+                info.context.db_session.commit()
                 email_contacts.append(EmailContact(db=new_contact))
             except IntegrityError:
-                info.context["db_session"].rollback()
+                info.context.db_session.rollback()
         return NewEmailCMPayload(email_contacts=email_contacts, errors=errors)
 
     @strawberry.mutation(permission_classes=[IsAuthenticated])
     def delete(self, info: Info, input: DeleteCMInput) -> DeleteCMPayload:
-        user_id = info.context["user_id"]
+        user_id = info.context.user_id
         cm_id = decode_gql_id(input.id)[1]
         stmt = delete(DBContactMethod).where(
             DBContactMethod.id == cm_id, DBContactMethod.user_id == user_id
         )
-        info.context["db_session"].execute(stmt)
-        info.context["db_session"].commit()
+        info.context.db_session.execute(stmt)
+        info.context.db_session.commit()
         return DeleteCMPayload()

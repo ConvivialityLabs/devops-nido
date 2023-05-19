@@ -15,6 +15,7 @@
 #  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import os
+from dataclasses import dataclass
 from typing import Any, Optional, Union
 
 import strawberry
@@ -23,8 +24,30 @@ from sqlalchemy.orm import scoped_session, sessionmaker
 from strawberry.asgi import GraphQL, Request, Response, WebSocket
 from strawberry.extensions import SchemaExtension
 
+from .db_models import DBCommunity, DBUser
 from .gql_mutation import Mutation
 from .gql_query import EmailContact, Query
+
+
+@dataclass
+class SchemaContext:
+    db_session: scoped_session
+    user_id: Optional[int] = None
+    community_id: Optional[int] = None
+
+    @property
+    def active_user(self):
+        if self.user_id:
+            return self.db_session().get(DBUser, self.user_id)
+        else:
+            return None
+
+    @property
+    def active_community(self):
+        if self.community_id:
+            return self.db_session().get(DBCommunity, self.community_id)
+        else:
+            return None
 
 
 class GraphQLWithDB(GraphQL):
@@ -35,19 +58,21 @@ class GraphQLWithDB(GraphQL):
     async def get_context(
         self, request: Union[Request, WebSocket], response: Optional[Response] = None
     ) -> Any:
-        return {
-            "db_session": self.Session,
-            "request": request,
-            "response": response,
-            "user_id": request.cookies.get("user_id"),
-            "community_id": request.cookies.get("community_id"),
-        }
+        try:
+            user_id = int(request.cookies["user_id"])
+        except:
+            user_id = None
+        try:
+            community_id = int(request.cookies["community_id"])
+        except:
+            community_id = None
+        return SchemaContext(self.Session, user_id, community_id)
 
 
 class DBSessionExtension(SchemaExtension):
     def on_operation(self):
         yield
-        self.execution_context.context["db_session"].remove()
+        self.execution_context.context.db_session.remove()
 
 
 def create_app():
