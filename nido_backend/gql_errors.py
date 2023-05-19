@@ -14,9 +14,11 @@
 #  You should have received a copy of the GNU Affero General Public License
 #  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+from sqlite3 import IntegrityError as SQLiteIntegrityError
 from typing import Optional
 
 import strawberry
+from sqlalchemy.exc import IntegrityError as SQLAlchIntegrityError
 
 
 @strawberry.interface
@@ -26,10 +28,31 @@ class Error:
 
 
 @strawberry.type
-class DummyError(Error):
-    message: str = "Error"
+class AlreadyTaken(Error):
+    message: str = "The data you submitted was already taken"
+
+
+@strawberry.type
+class NotFound(Error):
+    message: str = "The data you submitted could not be found"
 
 
 @strawberry.type
 class Unauthorized(Error):
     message: str = "Unauthorized"
+
+
+@strawberry.type
+class DatabaseError(Error):
+    message: str = "Unknown Database Error"
+
+
+def parse_integrity_error(db_error: SQLAlchIntegrityError) -> Error:
+    if isinstance(db_error.orig, SQLiteIntegrityError):
+        err_str = str(db_error.orig)
+        if err_str.startswith("UNIQUE"):
+            return AlreadyTaken(message=err_str)
+        else:
+            return DatabaseError()
+    else:
+        return DatabaseError()

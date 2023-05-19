@@ -25,6 +25,7 @@ from strawberry.asgi import GraphQL, Request, Response, WebSocket
 from strawberry.extensions import SchemaExtension
 
 from .db_models import DBCommunity, DBUser
+from .gql_errors import AlreadyTaken, DatabaseError, NotFound
 from .gql_mutation import Mutation
 from .gql_query import EmailContact, Query
 
@@ -80,7 +81,7 @@ def create_app():
     schema = strawberry.Schema(
         query=Query,
         mutation=Mutation,
-        types=[EmailContact],
+        types=[EmailContact, DatabaseError, AlreadyTaken, NotFound],
         extensions=[DBSessionExtension],
     )
     return GraphQLWithDB(db_engine, schema)

@@ -20,6 +20,7 @@ import strawberry
 from sqlalchemy import select
 from strawberry.types import Info
 
+from .authorization import oso
 from .db_models import (
     DBCommunity,
     DBContactMethod,
@@ -119,12 +120,16 @@ class User:
         return f"{self.db.family_name}, {self.db.personal_name}"
 
     @strawberry.field
-    def contact_methods(self) -> List["ContactMethod"]:
-        return [
-            EmailContact(db=cm)
-            for cm in self.db.contact_methods
-            if isinstance(cm, DBEmailContact)
-        ]
+    def contact_methods(self, info: Info) -> List["ContactMethod"]:
+        au = info.context.active_user
+        if au:
+            return [
+                EmailContact(db=cm)
+                for cm in self.db.contact_methods
+                if isinstance(cm, DBEmailContact) and oso.is_allowed(au, "read", cm)
+            ]
+        else:
+            return []
 
 
 @strawberry.type

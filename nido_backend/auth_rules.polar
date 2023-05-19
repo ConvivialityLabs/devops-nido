@@ -17,5 +17,16 @@ has_role(user: User, "member", group: Group) if
 has_relation(parent: Group, "managing_group", child: Group) if
     child.managed_by = parent;
 
+resource ContactMethod {
+    permissions = ["read", "delete"];
+    relations = { owner: User };
+
+    "read" if "owner";
+    "delete" if "owner";
+}
+
+has_relation(user: User, "owner", contact_method: ContactMethod) if
+    contact_method.user.id = user.id;
+
 allow(actor, action, resource) if
     has_permission(actor, action, resource);

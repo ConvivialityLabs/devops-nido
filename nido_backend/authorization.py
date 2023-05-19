@@ -15,10 +15,11 @@
 #  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 from oso import Oso
 
-from .db_models import DBGroup, DBUser
+from .db_models import DBContactMethod, DBGroup, DBUser
 
 oso = Oso()
 
+oso.register_class(DBContactMethod, name="ContactMethod")
 oso.register_class(DBGroup, name="Group")
 oso.register_class(DBUser, name="User")
 

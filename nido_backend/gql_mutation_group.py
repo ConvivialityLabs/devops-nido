@@ -23,7 +23,7 @@ from strawberry.types import Info
 
 from .authorization import oso
 from .db_models import DBGroup, DBGroupMembership, DBUser
-from .gql_errors import DummyError, Error, Unauthorized
+from .gql_errors import Error, Unauthorized
 from .gql_helpers import decode_gql_id
 from .gql_permissions import IsAuthenticated
 from .gql_query import Group

@@ -22,8 +22,15 @@ from sqlalchemy import delete
 from sqlalchemy.exc import IntegrityError
 from strawberry.types import Info
 
+from .authorization import oso
 from .db_models import DBContactMethod, DBEmailContact, DBUser
-from .gql_errors import DummyError, Error, Unauthorized
+from .gql_errors import (
+    DatabaseError,
+    Error,
+    NotFound,
+    Unauthorized,
+    parse_integrity_error,
+)
 from .gql_helpers import decode_gql_id
 from .gql_permissions import IsAuthenticated
 from .gql_query import EmailContact
@@ -64,17 +71,35 @@ class ContactMethodMutations:
             try:
                 info.context.db_session.commit()
                 email_contacts.append(EmailContact(db=new_contact))
-            except IntegrityError:
+            except IntegrityError as ie:
+                gql_err = parse_integrity_error(ie)
+                errors.append(gql_err)
+                info.context.db_session.rollback()
+            except:
+                errors.append(DatabaseError())
                 info.context.db_session.rollback()
         return NewEmailCMPayload(email_contacts=email_contacts, errors=errors)
 
     @strawberry.mutation(permission_classes=[IsAuthenticated])
-    def delete(self, info: Info, input: DeleteCMInput) -> DeleteCMPayload:
-        user_id = info.context.user_id
-        cm_id = decode_gql_id(input.id)[1]
-        stmt = delete(DBContactMethod).where(
-            DBContactMethod.id == cm_id, DBContactMethod.user_id == user_id
-        )
-        info.context.db_session.execute(stmt)
-        info.context.db_session.commit()
-        return DeleteCMPayload()
+    def delete(self, info: Info, input: List[DeleteCMInput]) -> DeleteCMPayload:
+        errors: List[Error] = []
+
+        au = info.context.active_user
+        for i in input:
+            cm_id = decode_gql_id(i.id)[1]
+            cm = info.context.db_session.get(DBContactMethod, cm_id)
+            if not cm:
+                errors.append(NotFound())
+                continue
+            try:
+                oso.authorize(au, "delete", cm)
+            except:
+                errors.append(NotFound())
+                continue
+            info.context.db_session.delete(cm)
+            try:
+                info.context.db_session.commit()
+            except:
+                errors.append(DatabaseError())
+                info.context.db_session.rollback()
+        return DeleteCMPayload(errors=errors)

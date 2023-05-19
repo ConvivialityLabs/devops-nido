@@ -24,7 +24,7 @@ def test_gql_mutation_rename_group_success(test_schema, db_session):
 
 
 test_delete_query = """
-mutation TestDelete($input: DeleteCMInput = {id: ""}) {
+mutation TestDelete($input: [DeleteCMInput!] = {id: ""}) {
   contactMethods {
     delete(input: $input) {
       errors {
