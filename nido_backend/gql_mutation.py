@@ -16,14 +16,12 @@
 
 import strawberry
 
-from .gql_mutation_authentication import Authentication
 from .gql_mutation_contact_method import ContactMethodMutations
 from .gql_mutation_group import GroupMutations
 
 
 @strawberry.type
 class Mutation:
-    authentication: Authentication = strawberry.field(resolver=lambda: Authentication())
     contact_methods: ContactMethodMutations = strawberry.field(
         resolver=lambda: ContactMethodMutations()
     )
