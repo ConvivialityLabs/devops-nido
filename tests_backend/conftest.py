@@ -6,13 +6,7 @@ from strawberry import Schema
 
 from generate_mock_data import seed_db
 from nido_backend.db_models import Base
-from nido_backend.main import (
-    DBSessionExtension,
-    EmailContact,
-    Mutation,
-    Query,
-    SchemaContext,
-)
+from nido_backend.gql_schema import SchemaContext, create_schema
 
 
 class TestSchema(Schema):
@@ -61,11 +55,4 @@ def db_session(db_engine):
 
 @pytest.fixture(scope="function")
 def test_schema(db_session):
-    schema = TestSchema(
-        db_session=db_session,
-        query=Query,
-        mutation=Mutation,
-        types=[EmailContact],
-        extensions=[DBSessionExtension],
-    )
-    return schema
+    return create_schema(TestSchema, db_session=db_session)

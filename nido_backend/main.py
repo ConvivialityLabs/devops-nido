@@ -15,40 +15,13 @@
 #  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import os
-from dataclasses import dataclass
 from typing import Any, Optional, Union
 
-import strawberry
 from sqlalchemy import Engine, create_engine
 from sqlalchemy.orm import scoped_session, sessionmaker
 from strawberry.asgi import GraphQL, Request, Response, WebSocket
-from strawberry.extensions import SchemaExtension
 
-from .db_models import DBCommunity, DBUser
-from .gql_errors import AlreadyTaken, DatabaseError, NotFound
-from .gql_mutation import Mutation
-from .gql_query import EmailContact, Query
-
-
-@dataclass
-class SchemaContext:
-    db_session: scoped_session
-    user_id: Optional[int] = None
-    community_id: Optional[int] = None
-
-    @property
-    def active_user(self):
-        if self.user_id:
-            return self.db_session().get(DBUser, self.user_id)
-        else:
-            return None
-
-    @property
-    def active_community(self):
-        if self.community_id:
-            return self.db_session().get(DBCommunity, self.community_id)
-        else:
-            return None
+from .gql_schema import SchemaContext, create_schema
 
 
 class GraphQLWithDB(GraphQL):
@@ -70,18 +43,6 @@ class GraphQLWithDB(GraphQL):
         return SchemaContext(self.Session, user_id, community_id)
 
 
-class DBSessionExtension(SchemaExtension):
-    def on_operation(self):
-        yield
-        self.execution_context.context.db_session.remove()
-
-
 def create_app():
     db_engine = create_engine(os.environ["DATABASE_URL"], echo=True)
-    schema = strawberry.Schema(
-        query=Query,
-        mutation=Mutation,
-        types=[EmailContact, DatabaseError, AlreadyTaken, NotFound],
-        extensions=[DBSessionExtension],
-    )
-    return GraphQLWithDB(db_engine, schema)
+    return GraphQLWithDB(db_engine, create_schema())
