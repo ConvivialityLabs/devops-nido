@@ -218,4 +218,5 @@ class DBEmailContact(DBContactMethod):
 
     __mapper_args__ = {
         "polymorphic_identity": ContactType.Email,
+        "polymorphic_load": "inline",
     }
