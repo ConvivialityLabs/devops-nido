@@ -31,27 +31,34 @@ def decode_gql_id(id: str) -> Tuple[str, int]:
     return (data[0], int(data[1]))
 
 
-def prepare_orm_query(column: Any, info: Info, cols: List[Any], rels: List[Any]):
-    for field in info.selected_fields[0].selections:
-        # XXX selected_fields comes in camelCase but the SQL fields are in
-        # snake_case. This is a mess, hopefully a future library includes
-        # snake_case on the selected_fields object.
+def prepare_orm_query(info: Info, db_model_class: Any, gql_field: Any):
+    db_column_loads = []
+    db_relationship_loads = []
+    for field in gql_field.selections:
+        # XXX SelectedField.name comes in camelCase but the db columns are in
+        # snake_case. The line below converts them. It's a mess, hopefully a
+        # future library version includes a attribute with snake_case on the
+        # SelectedField object.
         pyname = (
-            info.schema._schema.type_map[column.__name__[2:]]
+            info.schema._schema.type_map[db_model_class.__name__[2:]]
             .fields[field.name]  # type: ignore
             .extensions["strawberry-definition"]
             .name
         )
-        sql_field = getattr(column, pyname, None)
-        if sql_field and isinstance(sql_field.property, ColumnProperty):
-            cols.append(sql_field)
-        elif sql_field and isinstance(sql_field.property, Relationship):
-            rels.append(sql_field)
-            # XXX Recurse to filter child's fields
+        db_model_attr = getattr(db_model_class, pyname, None)
+        if db_model_attr is None:
+            continue
+        elif isinstance(db_model_attr.property, ColumnProperty):
+            db_column_loads.append(db_model_attr)
+        elif isinstance(db_model_attr.property, Relationship):
+            sub_opts = prepare_orm_query(info, db_model_attr.mapper.class_, field)
+            db_relationship_loads.append(selectinload(db_model_attr).options(*sub_opts))
 
     opts = []
-    if len(cols) > 0:
-        opts.append(load_only(*cols))
-    if len(rels) > 0:
-        opts.append(selectinload(*rels))
+    if len(db_column_loads) > 0:
+        opts.append(load_only(*db_column_loads))
+    else:
+        opts.append(load_only(db_model_class.id))
+    if len(db_relationship_loads) > 0:
+        opts.extend(db_relationship_loads)
     return opts

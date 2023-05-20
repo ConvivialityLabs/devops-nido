@@ -17,8 +17,8 @@
 from typing import List, Optional
 
 import strawberry
-from sqlalchemy import select
 from strawberry.types import Info
+from strawberry.types.nodes import SelectedField
 
 from .authorization import oso
 from .db_models import (
@@ -187,24 +187,30 @@ class EmailContact(ContactMethod):
 class Query:
     @strawberry.field(permission_classes=[IsAuthenticated])
     def active_user(self, info: Info) -> Optional[User]:
-        try:
-            user_id = info.context.user_id
-            stmt = select(DBUser).where(DBUser.id == user_id)
-            opts = prepare_orm_query(DBUser, info, [], [])
-            stmt = stmt.options(*opts)
-            u = info.context.db_session.scalars(stmt).one()
+        user_id = info.context.user_id
+        au_field = None
+        for field in info.selected_fields:
+            if isinstance(field, SelectedField) and field.name == "activeUser":
+                au_field = field
+                break
+        opts = prepare_orm_query(info, DBUser, au_field)
+        u = info.context.db_session.get(DBUser, user_id, options=opts)
+        if u:
             return User(db=u)
-        except:
+        else:
             return None
 
     @strawberry.field(permission_classes=[IsAuthenticated])
     def active_community(self, info: Info) -> Optional[Community]:
-        try:
-            community_id = info.context.community_id
-            stmt = select(DBCommunity).where(DBCommunity.id == community_id)
-            opts = prepare_orm_query(DBCommunity, info, [], [])
-            stmt = stmt.options(*opts)
-            c = info.context.db_session.scalars(stmt).one()
+        community_id = info.context.community_id
+        ac_field = None
+        for field in info.selected_fields:
+            if isinstance(field, SelectedField) and field.name == "activeCommunity":
+                ac_field = field
+                break
+        opts = prepare_orm_query(info, DBCommunity, ac_field)
+        c = info.context.db_session.get(DBCommunity, community_id, options=opts)
+        if c:
             return Community(db=c)
-        except:
+        else:
             return None
