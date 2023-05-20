@@ -12,10 +12,10 @@ resource Group {
 }
 
 has_role(user: User, "member", group: Group) if
-    user in group.custom_members;
+    {id: user.id} in group.custom_members;
 
 has_relation(parent: Group, "managing_group", child: Group) if
-    child.managed_by = parent;
+    child.managed_by.id = parent.id;
 
 resource ContactMethod {
     permissions = ["read", "delete"];
