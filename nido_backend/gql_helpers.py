@@ -46,7 +46,7 @@ def prepare_orm_query(info: Info, db_model_class: Any, gql_field: Any):
             .name
         )
         db_model_attr = getattr(db_model_class, pyname, None)
-        if db_model_attr is None:
+        if db_model_attr is None or not hasattr(db_model_attr, "property"):
             continue
         elif isinstance(db_model_attr.property, ColumnProperty):
             db_column_loads.append(db_model_attr)
