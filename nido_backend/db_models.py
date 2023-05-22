@@ -176,6 +176,13 @@ class DBGroup(Base):
             # rows that self-reference.
             ondelete="SET DEFAULT",
         ),
+        sql_schema.ForeignKeyConstraint(
+            ["right_id", "community_id"],
+            ["right.id", "right.community_id"],
+            # ON DELETE NO ACTION because the right_id single column constraint
+            # will set the column to NULL and community_id shouldn't be changed
+            ondelete="NO ACTION",
+        ),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True, init=False, repr=False)
@@ -183,6 +190,9 @@ class DBGroup(Base):
         ForeignKey("community.id", ondelete="CASCADE"), server_default="0"
     )
     managing_group_id: Mapped[int] = mapped_column(server_default="0", init=False)
+    right_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("right.id", ondelete="SET NULL"), init=False
+    )
 
     name: Mapped[str]
 
@@ -199,6 +209,12 @@ class DBGroup(Base):
     manages: Mapped[List["DBGroup"]] = relationship(
         back_populates="managed_by",
         passive_deletes="all",
+        init=False,
+        repr=False,
+    )
+    right: Mapped[Optional["DBRight"]] = relationship(
+        back_populates="groups",
+        foreign_keys=[right_id],
         init=False,
         repr=False,
     )
@@ -318,6 +334,12 @@ class DBRight(Base, PermissionsMixin):  # type: ignore
     child_rights: Mapped[List["DBRight"]] = relationship(
         back_populates="parent_right",
         passive_deletes="all",
+        init=False,
+        repr=False,
+    )
+    groups: Mapped[List[DBGroup]] = relationship(
+        back_populates="right",
+        foreign_keys=[DBGroup.right_id],
         init=False,
         repr=False,
     )

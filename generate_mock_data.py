@@ -1893,6 +1893,7 @@ def seed_db(db_session):
         president = DBGroup(community_id=c.id, name="President")
         president.managing_group_id = top_group.id
         president.custom_members.append(c.users[0])
+        president.right = top_right
         db_session.add(top_group)
         db_session.add(top_right)
         db_session.add(president)

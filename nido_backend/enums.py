@@ -16,7 +16,10 @@
 
 from enum import Flag, auto
 
+import strawberry
 
+
+@strawberry.enum
 class PermissionsFlag(Flag):
     CAN_DELEGATE = auto()
     CREATE_GROUPS = auto()

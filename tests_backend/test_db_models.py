@@ -51,6 +51,17 @@ def test_group_membership_delete_cascade(db_session):
     assert old_count > new_count
 
 
+def test_right_on_delete_null(db_session):
+    group = db_session.get(DBGroup, 2)
+    right = group.right
+    db_session.delete(right)
+    db_session.commit()
+    column_val = db_session.scalar(
+        select(DBGroup.right_id).where(DBGroup.id == group.id)
+    )
+    assert column_val is None
+
+
 def test_right_permissions_attr_on_object():
     new_right = DBRight(community_id=0, name="Unlimited Right")
     for member in PermissionsFlag:

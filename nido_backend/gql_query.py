@@ -27,8 +27,10 @@ from .db_models import (
     DBEmailContact,
     DBGroup,
     DBResidence,
+    DBRight,
     DBUser,
 )
+from .enums import PermissionsFlag
 from .gql_helpers import encode_gql_id, prepare_orm_query
 from .gql_permissions import IsAuthenticated
 
@@ -52,6 +54,10 @@ class Community:
     @strawberry.field
     def groups(self) -> Optional[List["Group"]]:
         return [Group(db=g) for g in self.db.groups]
+
+    @strawberry.field
+    def rights(self) -> Optional[List["Right"]]:
+        return [Right(db=r) for r in self.db.rights]
 
     @strawberry.field
     def users(self) -> Optional[List["User"]]:
@@ -157,8 +163,45 @@ class Group:
         return [Group(db=g) for g in self.db.manages]
 
     @strawberry.field
+    def right(self) -> Optional["Right"]:
+        return Right(db=self.db.right) if self.db.right else None
+
+    @strawberry.field
     def custom_members(self) -> Optional[List[User]]:
         return [User(db=u) for u in self.db.custom_members]
+
+
+@strawberry.type
+class Right:
+    db: strawberry.Private[DBRight]
+
+    @strawberry.field
+    def id(self) -> strawberry.ID:
+        return encode_gql_id(DBRight.__tablename__, self.db.id)
+
+    @strawberry.field
+    def name(self) -> str:
+        return self.db.name
+
+    @strawberry.field
+    def permissions(self) -> List[PermissionsFlag]:
+        return [m for m in self.db.permissions]
+
+    @strawberry.field
+    def community(self) -> Optional[Community]:
+        return Community(db=self.db.community)
+
+    @strawberry.field
+    def parent_right(self) -> Optional["Right"]:
+        return Right(db=self.db.parent_right)
+
+    @strawberry.field
+    def child_rights(self) -> Optional[List["Right"]]:
+        return [Right(db=r) for r in self.db.child_rights]
+
+    @strawberry.field
+    def groups(self) -> Optional[List[Group]]:
+        return [Group(db=g) for g in self.db.groups]
 
 
 @strawberry.interface
