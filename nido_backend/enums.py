@@ -1,4 +1,4 @@
-#  Nido authorization.py
+#  Nido enums.py
 #  Copyright (C) John Arnold
 #
 #  This program is free software: you can redistribute it and/or modify
@@ -13,18 +13,13 @@
 #
 #  You should have received a copy of the GNU Affero General Public License
 #  along with this program.  If not, see <https://www.gnu.org/licenses/>.
-from oso import Oso
 
-from .db_models import DBContactMethod, DBGroup, DBUser
-from .enums import PermissionsFlag
+from enum import Flag, auto
 
-oso = Oso()
 
-oso.register_class(DBContactMethod, name="ContactMethod")
-oso.register_class(DBGroup, name="Group")
-oso.register_class(DBUser, name="User")
+class PermissionsFlag(Flag):
+    CAN_DELEGATE = auto()
+    CREATE_GROUPS = auto()
 
-for member in PermissionsFlag:
-    oso.register_constant(member.value, member.name)
-
-oso.load_files(["nido_backend/auth_rules.polar"])
+    def __bool__(self):
+        return bool(self.value)

@@ -3,11 +3,14 @@ from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 
 from nido_backend.db_models import (
+    DBCommunity,
     DBEmailContact,
     DBGroup,
     DBGroupMembership,
     DBResidenceOccupancy,
+    DBRight,
 )
+from nido_backend.enums import PermissionsFlag
 
 
 def test_residence_occupany_foreign_key(db_session):
@@ -46,3 +49,31 @@ def test_group_membership_delete_cascade(db_session):
     db_session.commit()
     new_count = db_session.scalar(select(func.count()).select_from(DBGroupMembership))
     assert old_count > new_count
+
+
+def test_right_permissions_attr_on_object():
+    new_right = DBRight(community_id=0, name="Unlimited Right")
+    for member in PermissionsFlag:
+        setattr(new_right, member.name.lower(), member)
+    assert new_right.permissions == ~PermissionsFlag(0)
+
+
+def test_right_permissions_attr_on_class(db_session):
+    all_permissions = ~PermissionsFlag(0)
+    community_count = db_session.scalar(select(func.count()).select_from(DBCommunity))
+    right_count = db_session.scalar(
+        select(func.count())
+        .select_from(DBRight)
+        .where(DBRight.permissions == all_permissions.value)
+    )
+    assert right_count == community_count
+
+
+def test_right_permits_hybrid_method_on_class(db_session):
+    some_permissions = PermissionsFlag.CAN_DELEGATE | PermissionsFlag.CREATE_GROUPS
+    right_count = db_session.scalar(
+        select(func.count())
+        .select_from(DBRight)
+        .where(DBRight.permits(some_permissions.value))
+    )
+    assert right_count > 0

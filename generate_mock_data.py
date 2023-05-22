@@ -7,8 +7,10 @@ from nido_backend.db_models import (
     DBEmailContact,
     DBGroup,
     DBResidence,
+    DBRight,
     DBUser,
 )
+from nido_backend.enums import PermissionsFlag
 
 
 def td(a1, a2, b1, b2, c1, c2):
@@ -1879,14 +1881,20 @@ def seed_db(db_session):
 
     for c in communities:
         top_group = DBGroup(community_id=c.id, name="Board of Directors")
+        top_right = DBRight(community_id=c.id, name="Unlimited Right")
+        top_right.permissions = ~PermissionsFlag(0)
         db_session.add(top_group)
+        db_session.add(top_right)
         db_session.flush()
+
         top_group.managing_group_id = top_group.id
+        top_right.parent_right_id = top_right.id
         top_group.custom_members.extend(c.users[0:6])
         president = DBGroup(community_id=c.id, name="President")
         president.managing_group_id = top_group.id
         president.custom_members.append(c.users[0])
         db_session.add(top_group)
+        db_session.add(top_right)
         db_session.add(president)
         db_session.commit()
 
