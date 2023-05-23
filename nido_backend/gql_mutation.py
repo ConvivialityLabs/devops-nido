@@ -18,6 +18,7 @@ import strawberry
 
 from .gql_mutation_contact_method import ContactMethodMutations
 from .gql_mutation_group import GroupMutations
+from .gql_mutation_right import RightMutations
 
 
 @strawberry.type
@@ -26,3 +27,4 @@ class Mutation:
         resolver=lambda: ContactMethodMutations()
     )
     groups: GroupMutations = strawberry.field(resolver=lambda: GroupMutations())
+    rights: RightMutations = strawberry.field(resolver=lambda: RightMutations())

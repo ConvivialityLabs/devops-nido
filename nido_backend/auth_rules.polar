@@ -17,6 +17,24 @@ has_role(user: User, "member", group: Group) if
 has_relation(parent: Group, "managing_group", child: Group) if
     child.managed_by.id = parent.id;
 
+resource Right {
+    permissions = ["delegate"];
+    roles = ["possessor", "delegator"];
+
+    "delegate" if "delegator";
+
+}
+
+has_role(user: User, "possessor", right: Right) if
+    group in user.groups and
+    group matches {right_id: right.id};
+
+has_role(user: User, "delegator", right: Right) if
+    group in user.groups and
+    group matches {right_id: right.parent_right_id} and
+    right.parent_right.permits(right.permissions);
+
+
 resource ContactMethod {
     permissions = ["read", "delete"];
     relations = { owner: User };

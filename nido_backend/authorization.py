@@ -13,15 +13,16 @@
 #
 #  You should have received a copy of the GNU Affero General Public License
 #  along with this program.  If not, see <https://www.gnu.org/licenses/>.
-from oso import Oso
+from oso import AuthorizationError, ForbiddenError, NotFoundError, Oso
 
-from .db_models import DBContactMethod, DBGroup, DBUser
+from .db_models import DBContactMethod, DBGroup, DBRight, DBUser
 from .enums import PermissionsFlag
 
 oso = Oso()
 
 oso.register_class(DBContactMethod, name="ContactMethod")
 oso.register_class(DBGroup, name="Group")
+oso.register_class(DBRight, name="Right")
 oso.register_class(DBUser, name="User")
 
 for member in PermissionsFlag:
