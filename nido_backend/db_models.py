@@ -153,6 +153,12 @@ class DBUser(Base):
     contact_methods: Mapped[List["DBContactMethod"]] = relationship(
         back_populates="user", init=False, repr=False
     )
+    groups: Mapped[List["DBGroup"]] = relationship(
+        secondary="group_membership",
+        back_populates="custom_members",
+        init=False,
+        repr=False,
+    )
 
 
 class DBGroup(Base):
@@ -220,6 +226,7 @@ class DBGroup(Base):
     )
     custom_members: Mapped[List[DBUser]] = relationship(
         secondary="group_membership",
+        back_populates="groups",
         init=False,
         repr=False,
     )
