@@ -287,13 +287,7 @@ class DBRight(Base, PermissionsMixin):  # type: ignore
             # needed to correctly build the row when a right is its own parent.
             deferrable=True,
             initially="DEFERRED",
-            # Use ON DELETE SET DEFAULT with nonsense defaults in the columns.
-            # ON DELETE CASCADE is the wrong behavior; we don't want users
-            # unthinkingly deleting a parent right and unintentionally deleting
-            # all child rights.
-            # ON DELETE RESTRICT and ON DELETE SET NULL don't work well with
-            # rows that self-reference.
-            ondelete="SET DEFAULT",
+            ondelete="CASCADE",
         ),
     )
 
