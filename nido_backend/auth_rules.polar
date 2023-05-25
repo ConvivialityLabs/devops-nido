@@ -1,10 +1,13 @@
 actor User {}
 
 resource Group {
-    permissions = ["update", "delete"];
+    permissions = ["query", "update", "delete"];
     roles = ["member", "manager"];
     relations = { managing_group: Group };
 
+    "query" if "member";
+
+    "query" if "manager";
     "update" if "manager";
     "delete" if "manager";
 
@@ -12,7 +15,8 @@ resource Group {
 }
 
 has_role(user: User, "member", group: Group) if
-    {id: user.id} in group.custom_members;
+    member in group.custom_members and
+    member matches {id: user.id};
 
 has_relation(parent: Group, "managing_group", child: Group) if
     child.managed_by.id = parent.id;

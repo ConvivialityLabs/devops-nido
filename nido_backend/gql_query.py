@@ -52,8 +52,9 @@ class Community:
         return [Residence(db=r) for r in self.db.residences]
 
     @strawberry.field
-    def groups(self) -> Optional[List["Group"]]:
-        return [Group(db=g) for g in self.db.groups]
+    def groups(self, info: Info) -> Optional[List["Group"]]:
+        au = info.context.active_user
+        return [Group(db=g) for g in self.db.groups if oso.is_allowed(au, "query", g)]
 
     @strawberry.field
     def rights(self) -> Optional[List["Right"]]:
@@ -200,8 +201,9 @@ class Right:
         return [Right(db=r) for r in self.db.child_rights]
 
     @strawberry.field
-    def groups(self) -> Optional[List[Group]]:
-        return [Group(db=g) for g in self.db.groups]
+    def groups(self, info: Info) -> Optional[List[Group]]:
+        au = info.context.active_user
+        return [Group(db=g) for g in self.db.groups if oso.is_allowed(au, "query", g)]
 
 
 @strawberry.interface
