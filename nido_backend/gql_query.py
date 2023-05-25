@@ -132,7 +132,7 @@ class User:
             return [
                 EmailContact(db=cm)
                 for cm in self.db.contact_methods
-                if isinstance(cm, DBEmailContact) and oso.is_allowed(au, "read", cm)
+                if isinstance(cm, DBEmailContact) and oso.is_allowed(au, "query", cm)
             ]
         else:
             return []

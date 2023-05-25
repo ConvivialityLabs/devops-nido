@@ -18,7 +18,7 @@ from oso import AuthorizationError, ForbiddenError, NotFoundError, Oso
 from .db_models import DBContactMethod, DBGroup, DBRight, DBUser
 from .enums import PermissionsFlag
 
-oso = Oso()
+oso = Oso(read_action="query")
 
 oso.register_class(DBContactMethod, name="ContactMethod")
 oso.register_class(DBGroup, name="Group")

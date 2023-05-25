@@ -36,10 +36,10 @@ has_role(user: User, "delegator", right: Right) if
 
 
 resource ContactMethod {
-    permissions = ["read", "delete"];
+    permissions = ["query", "delete"];
     relations = { owner: User };
 
-    "read" if "owner";
+    "query" if "owner";
     "delete" if "owner";
 }
 
