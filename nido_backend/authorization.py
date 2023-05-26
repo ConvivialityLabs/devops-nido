@@ -25,7 +25,6 @@ oso.register_class(DBGroup, name="Group")
 oso.register_class(DBRight, name="Right")
 oso.register_class(DBUser, name="User")
 
-for member in PermissionsFlag:
-    oso.register_constant(member.value, member.name)
+oso.register_class(PermissionsFlag, name="Permissions")
 
 oso.load_files(["nido_backend/auth_rules.polar"])

@@ -36,6 +36,7 @@ has_role(user: User, "possessor", right: Right) if
 has_role(user: User, "delegator", right: Right) if
     group in user.groups and
     group matches {right_id: right.parent_right_id} and
+    right.parent_right.permits(Permissions.CAN_DELEGATE) and
     right.parent_right.permits(right.permissions);
 
 
