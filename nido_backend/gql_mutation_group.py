@@ -17,10 +17,11 @@
 from typing import List, Optional
 
 import strawberry
+from sqlalchemy import delete
 from strawberry.types import Info
 
 from .authorization import AuthorizationError, oso
-from .db_models import DBGroup, DBGroupMembership
+from .db_models import DBGroup, DBGroupMembership, DBUser
 from .gql_errors import DatabaseError, Error, NotFound, Unauthorized
 from .gql_helpers import decode_gql_id
 from .gql_permissions import IsAuthenticated
@@ -48,6 +49,30 @@ class RenameGroupInput:
 
 @strawberry.type
 class RenameGroupPayload:
+    groups: Optional[List[Group]] = None
+    errors: Optional[List[Error]] = None
+
+
+@strawberry.input
+class AddMembersGroupInput:
+    group: strawberry.ID
+    members: List[strawberry.ID]
+
+
+@strawberry.type
+class AddMembersGroupPayload:
+    groups: Optional[List[Group]] = None
+    errors: Optional[List[Error]] = None
+
+
+@strawberry.input
+class RemoveMembersGroupInput:
+    group: strawberry.ID
+    members: List[strawberry.ID]
+
+
+@strawberry.type
+class RemoveMembersGroupPayload:
     groups: Optional[List[Group]] = None
     errors: Optional[List[Error]] = None
 
@@ -135,6 +160,65 @@ class GroupMutations:
                 errors.append(DatabaseError())
                 info.context.db_session.rollback()
         return RenameGroupPayload(groups=groups, errors=errors)
+
+    @strawberry.mutation(permission_classes=[IsAuthenticated])
+    def add_members(
+        self, info: Info, input: List[AddMembersGroupInput]
+    ) -> AddMembersGroupPayload:
+        groups: List[Group] = []
+        errors: List[Error] = []
+
+        user = info.context.active_user
+        for i in input:
+            group = info.context.db_session.get(DBGroup, decode_gql_id(i.group)[1])
+            try:
+                oso.authorize(user, "update", group)
+            except AuthorizationError as err:
+                errors.append(Unauthorized())
+                continue
+            for m_id in i.members:
+                member = info.context.db_session.get(DBUser, decode_gql_id(m_id)[1])
+                group.custom_members.append(member)
+            info.context.db_session.add(group)
+            try:
+                info.context.db_session.commit()
+                groups.append(Group(db=group))
+            except:
+                errors.append(DatabaseError())
+                info.context.db_session.rollback()
+        return AddMembersGroupPayload(groups=groups, errors=errors)
+
+    @strawberry.mutation(permission_classes=[IsAuthenticated])
+    def remove_members(
+        self, info: Info, input: List[RemoveMembersGroupInput]
+    ) -> RemoveMembersGroupPayload:
+        groups: List[Group] = []
+        errors: List[Error] = []
+
+        user = info.context.active_user
+        community_id = info.context.community_id
+        for i in input:
+            group = info.context.db_session.get(DBGroup, decode_gql_id(i.group)[1])
+            try:
+                oso.authorize(user, "update", group)
+            except AuthorizationError as err:
+                errors.append(Unauthorized())
+                continue
+            stmt = delete(DBGroupMembership).where(
+                DBGroupMembership.community_id == community_id,
+                DBGroupMembership.group_id == group.id,
+                DBGroupMembership.user_id.in_(
+                    [decode_gql_id(m_id)[1] for m_id in i.members]
+                ),
+            )
+            info.context.db_session.execute(stmt)
+            try:
+                info.context.db_session.commit()
+                groups.append(Group(db=group))
+            except:
+                errors.append(DatabaseError())
+                info.context.db_session.rollback()
+        return RemoveMembersGroupPayload(groups=groups, errors=errors)
 
     @strawberry.mutation(permission_classes=[IsAuthenticated])
     def delete(self, info: Info, input: List[DeleteGroupInput]) -> DeleteGroupPayload:

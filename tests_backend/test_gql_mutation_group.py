@@ -43,6 +43,48 @@ def test_gql_mutation_rename_group_success(test_schema, db_session):
     assert db_val.name == "CEO"
 
 
+test_add_members_query = """
+mutation MyMutation($input: [AddMembersGroupInput!] = {group: "", members: ""}) {
+  groups {
+    addMembers(input: $input) {
+      groups {
+        name
+      }
+    }
+  }
+}"""
+
+
+def test_gql_mutation_add_members_group_success(test_schema, db_session):
+    old_count = db_session.scalar(select(func.count()).select_from(DBGroupMembership))
+    var_dir = {"input": {"group": "Z3JvdXA6Mg==", "members": "dXNlcjoxMg=="}}
+    context = {"user_id": 1, "community_id": 1}
+    test_schema.execute_sync(test_add_members_query, var_dir, context)
+    new_count = db_session.scalar(select(func.count()).select_from(DBGroupMembership))
+    assert new_count == old_count + 1
+
+
+test_remove_members_query = """
+mutation MyMutation($input: [RemoveMembersGroupInput!] = {group: "", members: ""}) {
+  groups {
+    removeMembers(input: $input) {
+      groups {
+        name
+      }
+    }
+  }
+}"""
+
+
+def test_gql_mutation_remove_members_group_success(test_schema, db_session):
+    old_count = db_session.scalar(select(func.count()).select_from(DBGroupMembership))
+    var_dir = {"input": {"group": "Z3JvdXA6MQ==", "members": "dXNlcjoz"}}
+    context = {"user_id": 1, "community_id": 1}
+    test_schema.execute_sync(test_remove_members_query, var_dir, context)
+    new_count = db_session.scalar(select(func.count()).select_from(DBGroupMembership))
+    assert new_count == old_count - 1
+
+
 test_delete_query = """
 mutation TestDelete($input: [DeleteGroupInput!] = {group: ""}) {
   groups {
