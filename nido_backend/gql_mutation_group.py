@@ -68,7 +68,7 @@ class DeleteGroupPayload:
 class GroupMutations:
     @strawberry.mutation(permission_classes=[IsAuthenticated])
     def new(self, info: Info, input: List[NewGroupInput]) -> NewGroupPayload:
-        user_id = info.context.user_id
+        au = info.context.active_user
         community_id = info.context.community_id
         for i in input:
             if i.managing_group:
@@ -85,6 +85,7 @@ class GroupMutations:
                     pass
                 ng.managing_group_id = ng.id
                 info.context.db_session.add(ng)
+            oso.authorize(au, "create", ng)
             if i.custom_members:
                 for mem_id in i.custom_members:
                     entry = DBGroupMembership(
@@ -95,7 +96,7 @@ class GroupMutations:
                     info.context.db_session.add(entry)
             else:
                 entry = DBGroupMembership(
-                    user_id=user_id, community_id=community_id, group_id=ng.id
+                    user_id=au.id, community_id=community_id, group_id=ng.id
                 )
                 info.context.db_session.add(entry)
                 try:

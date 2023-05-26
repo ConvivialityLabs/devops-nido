@@ -1,7 +1,7 @@
 actor User {}
 
 resource Group {
-    permissions = ["query", "update", "delete"];
+    permissions = ["query", "create", "update", "delete"];
     roles = ["member", "manager"];
     relations = { managing_group: Group };
 
@@ -13,6 +13,12 @@ resource Group {
 
     "manager" if "member" on "managing_group";
 }
+
+has_permission(user: User, "create", _group: Group) if
+    group in user.groups and
+    group.right != nil and
+    group.right.permits(Permissions.CREATE_GROUPS);
+
 
 has_role(user: User, "member", group: Group) if
     member in group.custom_members and
