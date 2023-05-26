@@ -3,15 +3,12 @@ actor User {}
 resource Group {
     permissions = ["query", "create", "update", "delete"];
     roles = ["member", "manager"];
-    relations = { managing_group: Group };
 
     "query" if "member";
 
     "query" if "manager";
     "update" if "manager";
     "delete" if "manager";
-
-    "manager" if "member" on "managing_group";
 }
 
 has_permission(user: User, "create", _group: Group) if
@@ -19,13 +16,13 @@ has_permission(user: User, "create", _group: Group) if
     group.right != nil and
     group.right.permits(Permissions.CREATE_GROUPS);
 
-
 has_role(user: User, "member", group: Group) if
     member in group.custom_members and
     member matches {id: user.id};
 
-has_relation(parent: Group, "managing_group", child: Group) if
-    child.managed_by.id = parent.id;
+has_role(user: User, "manager", group: Group) if
+    member in group.managed_by.custom_members and
+    member matches {id: user.id};
 
 resource Right {
     permissions = ["delegate"];

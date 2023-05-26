@@ -14,16 +14,14 @@
 #  You should have received a copy of the GNU Affero General Public License
 #  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-from typing import List, Optional, Union
+from typing import List, Optional
 
 import strawberry
-from sqlalchemy import delete, select, update
-from sqlalchemy.orm import noload
 from strawberry.types import Info
 
-from .authorization import oso
-from .db_models import DBGroup, DBGroupMembership, DBUser
-from .gql_errors import Error, Unauthorized
+from .authorization import AuthorizationError, oso
+from .db_models import DBGroup, DBGroupMembership
+from .gql_errors import DatabaseError, Error, NotFound, Unauthorized
 from .gql_helpers import decode_gql_id
 from .gql_permissions import IsAuthenticated
 from .gql_query import Group
@@ -68,24 +66,32 @@ class DeleteGroupPayload:
 class GroupMutations:
     @strawberry.mutation(permission_classes=[IsAuthenticated])
     def new(self, info: Info, input: List[NewGroupInput]) -> NewGroupPayload:
+        new_groups: List[Group] = []
+        errors: List[Error] = []
+
         au = info.context.active_user
         community_id = info.context.community_id
         for i in input:
+            ng = DBGroup(name=i.name, community_id=community_id)
+            try:
+                oso.authorize(au, "create", ng)
+            except AuthorizationError as err:
+                errors.append(Unauthorized())
+                continue
             if i.managing_group:
                 managing_id = decode_gql_id(i.managing_group)[1]
-                ng = DBGroup(name=i.name, community_id=community_id)
                 ng.managing_group_id = managing_id
                 info.context.db_session.add(ng)
             else:
-                ng = DBGroup(name=i.name, community_id=community_id)
                 info.context.db_session.add(ng)
                 try:
                     info.context.db_session.flush()
                 except:
-                    pass
+                    errors.append(DatabaseError())
+                    info.context.db_session.rollback()
+                    continue
                 ng.managing_group_id = ng.id
                 info.context.db_session.add(ng)
-            oso.authorize(au, "create", ng)
             if i.custom_members:
                 for mem_id in i.custom_members:
                     entry = DBGroupMembership(
@@ -99,41 +105,55 @@ class GroupMutations:
                     user_id=au.id, community_id=community_id, group_id=ng.id
                 )
                 info.context.db_session.add(entry)
-                try:
-                    info.context.db_session.commit()
-                except:
-                    pass
-        return NewGroupPayload()
+            try:
+                info.context.db_session.commit()
+                new_groups.append(Group(db=ng))
+            except:
+                errors.append(DatabaseError())
+                info.context.db_session.rollback()
+        return NewGroupPayload(groups=new_groups, errors=errors)
 
     @strawberry.mutation(permission_classes=[IsAuthenticated])
     def rename(self, info: Info, input: List[RenameGroupInput]) -> RenameGroupPayload:
+        groups: List[Group] = []
         errors: List[Error] = []
-        user_id = info.context.user_id
-        user = info.context.db_session.get(DBUser, user_id)
+
+        user = info.context.active_user
         for i in input:
             group = info.context.db_session.get(DBGroup, decode_gql_id(i.group)[1])
             try:
                 oso.authorize(user, "update", group)
-            except:
+            except AuthorizationError as err:
                 errors.append(Unauthorized())
-            stmt = update(DBGroup).where(DBGroup.id == group.id).values(name=i.name)
-            info.context.db_session.execute(stmt)
-        info.context.db_session.commit()
-        return RenameGroupPayload(errors=errors)
+                continue
+            group.name = i.name
+            info.context.db_session.add(group)
+            try:
+                info.context.db_session.commit()
+                groups.append(Group(db=group))
+            except:
+                errors.append(DatabaseError())
+                info.context.db_session.rollback()
+        return RenameGroupPayload(groups=groups, errors=errors)
 
     @strawberry.mutation(permission_classes=[IsAuthenticated])
     def delete(self, info: Info, input: List[DeleteGroupInput]) -> DeleteGroupPayload:
         errors: List[Error] = []
-        user_id = info.context.user_id
-        user = info.context.db_session.get(DBUser, user_id)
+        user = info.context.active_user
         for i in input:
             group = info.context.db_session.get(DBGroup, decode_gql_id(i.group)[1])
+            if not group:
+                errors.append(NotFound())
+                continue
             try:
                 oso.authorize(user, "delete", group)
-            except:
+            except AuthorizationError as err:
                 errors.append(Unauthorized())
-            stmt = delete(DBGroup).where(DBGroup.id == group.id)
-            info.context.db_session.execute(stmt)
-
-        info.context.db_session.commit()
+                continue
+            info.context.db_session.delete(group)
+            try:
+                info.context.db_session.commit()
+            except:
+                errors.append(DatabaseError())
+                info.context.db_session.rollback()
         return DeleteGroupPayload(errors=errors)
