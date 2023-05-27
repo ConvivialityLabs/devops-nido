@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 
 from nido_backend.db_models import (
     DBCommunity,
+    DBDirFolder,
     DBEmailContact,
     DBGroup,
     DBResidence,
@@ -1889,6 +1890,7 @@ def seed_db(db_session):
 
         top_group.managing_group_id = top_group.id
         top_right.parent_right_id = top_right.id
+
         top_group.custom_members.extend(c.users[0:6])
         president = DBGroup(community_id=c.id, name="President")
         president.managing_group_id = top_group.id
@@ -1897,6 +1899,10 @@ def seed_db(db_session):
         db_session.add(top_group)
         db_session.add(top_right)
         db_session.add(president)
+
+        root_folder = DBDirFolder(community_id=c.id, name="<root>")
+        db_session.add(root_folder)
+
         db_session.commit()
 
 

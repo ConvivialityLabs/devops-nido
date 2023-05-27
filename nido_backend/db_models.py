@@ -373,3 +373,124 @@ class DBEmailContact(DBContactMethod):
         "polymorphic_identity": ContactType.Email,
         "polymorphic_load": "inline",
     }
+
+
+class DBDirFolder(Base):
+    __tablename__ = "directory_folder"
+    __table_args__ = (
+        sql_schema.UniqueConstraint("id", "community_id"),
+        sql_schema.ForeignKeyConstraint(
+            ["parent_folder_id", "community_id"],
+            ["directory_folder.id", "directory_folder.community_id"],
+            ondelete="CASCADE",
+        ),
+        sql_schema.UniqueConstraint("parent_folder_id", "name"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True, init=False, repr=False)
+    community_id: Mapped[int] = mapped_column(
+        ForeignKey("community.id", ondelete="CASCADE")
+    )
+    parent_folder_id: Mapped[int] = mapped_column(nullable=True, init=False)
+
+    name: Mapped[str]
+
+    community: Mapped[DBCommunity] = relationship(viewonly=True, init=False, repr=False)
+    parent_folder: Mapped["DBDirFolder"] = relationship(
+        back_populates="subfolders",
+        remote_side=[id, community_id],
+        init=False,
+        repr=False,
+    )
+    subfolders: Mapped[List["DBDirFolder"]] = relationship(
+        back_populates="parent_folder",
+        init=False,
+        repr=False,
+    )
+    reader_groups: Mapped[List[DBGroup]] = relationship(
+        secondary="directory_folder_group_permissions",
+        init=False,
+        repr=False,
+    )
+
+
+class DBDirFile(Base):
+    __tablename__ = "directory_file"
+    __table_args__ = (
+        sql_schema.UniqueConstraint("id", "community_id"),
+        sql_schema.ForeignKeyConstraint(
+            ["folder_id", "community_id"],
+            ["directory_folder.id", "directory_folder.community_id"],
+            ondelete="CASCADE",
+        ),
+        sql_schema.UniqueConstraint("folder_id", "name"),
+        sql_schema.CheckConstraint(
+            "(url IS NULL AND data IS NOT NULL) OR "
+            "(data IS NULL AND url IS NOT NULL)"
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True, init=False, repr=False)
+    community_id: Mapped[int] = mapped_column(
+        ForeignKey("community.id", ondelete="CASCADE")
+    )
+    folder_id: Mapped[int]
+
+    name: Mapped[str]
+    url: Mapped[Optional[str]]
+    data: Mapped[Optional[bytes]]
+
+    community: Mapped[DBCommunity] = relationship(viewonly=True, init=False, repr=False)
+    parent_folder: Mapped[DBDirFolder] = relationship(
+        init=False,
+        repr=False,
+    )
+    reader_groups: Mapped[List[DBGroup]] = relationship(
+        secondary="directory_file_group_permissions",
+        init=False,
+        repr=False,
+    )
+
+
+class DBDirFolderGroupPermissions(Base):
+    __tablename__ = "directory_folder_group_permissions"
+    __table_args__ = (
+        sql_schema.ForeignKeyConstraint(
+            ["folder_id", "community_id"],
+            ["directory_folder.id", "directory_folder.community_id"],
+            ondelete="CASCADE",
+        ),
+        sql_schema.ForeignKeyConstraint(
+            ["group_id", "community_id"],
+            ["group.id", "group.community_id"],
+            ondelete="CASCADE",
+        ),
+    )
+
+    community_id: Mapped[int] = mapped_column(
+        ForeignKey("community.id", ondelete="CASCADE"), primary_key=True
+    )
+    folder_id: Mapped[int] = mapped_column(primary_key=True)
+    group_id: Mapped[int] = mapped_column(primary_key=True)
+
+
+class DBDirFileGroupPermissions(Base):
+    __tablename__ = "directory_file_group_permissions"
+    __table_args__ = (
+        sql_schema.ForeignKeyConstraint(
+            ["file_id", "community_id"],
+            ["directory_file.id", "directory_file.community_id"],
+            ondelete="CASCADE",
+        ),
+        sql_schema.ForeignKeyConstraint(
+            ["group_id", "community_id"],
+            ["group.id", "group.community_id"],
+            ondelete="CASCADE",
+        ),
+    )
+
+    community_id: Mapped[int] = mapped_column(
+        ForeignKey("community.id", ondelete="CASCADE"), primary_key=True
+    )
+    file_id: Mapped[int] = mapped_column(primary_key=True)
+    group_id: Mapped[int] = mapped_column(primary_key=True)
