@@ -14,6 +14,7 @@
 #  You should have received a copy of the GNU Affero General Public License
 #  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import datetime
 import enum
 from dataclasses import field, make_dataclass
 from functools import reduce
@@ -31,7 +32,7 @@ from sqlalchemy.orm import (
     relationship,
 )
 
-from .enums import PermissionsFlag
+from .enums import BillingFrequency, PermissionsFlag
 
 
 class BooleanFlag(sql_types.TypeDecorator):
@@ -73,6 +74,15 @@ class DBCommunity(Base):
     residences: Mapped[List["DBResidence"]] = relationship(
         back_populates="community", init=False, repr=False
     )
+    recurring_billing_charges: Mapped[List["DBBillingRecurringCharge"]] = relationship(
+        back_populates="community", viewonly=True, init=False, repr=False
+    )
+    billing_charges: Mapped[List["DBBillingCharge"]] = relationship(
+        back_populates="community", viewonly=True, init=False, repr=False
+    )
+    billing_payments: Mapped[List["DBBillingPayment"]] = relationship(
+        back_populates="community", viewonly=True, init=False, repr=False
+    )
     groups: Mapped[List["DBGroup"]] = relationship(
         back_populates="community", viewonly=True, init=False, repr=False
     )
@@ -108,6 +118,16 @@ class DBResidence(Base):
     occupants: Mapped[List["DBUser"]] = relationship(
         secondary="residence_occupancy",
         back_populates="residences",
+        init=False,
+        repr=False,
+    )
+    billing_charges: Mapped[List["DBBillingCharge"]] = relationship(
+        back_populates="residence",
+        init=False,
+        repr=False,
+    )
+    recurring_billing_charges: Mapped[List["DBBillingRecurringCharge"]] = relationship(
+        back_populates="residence",
         init=False,
         repr=False,
     )
@@ -149,6 +169,12 @@ class DBUser(Base):
         back_populates="occupants",
         init=False,
         repr=False,
+    )
+    recurring_billing_charges: Mapped[List["DBBillingRecurringCharge"]] = relationship(
+        back_populates="user", viewonly=True, init=False, repr=False
+    )
+    billing_charges: Mapped[List["DBBillingCharge"]] = relationship(
+        back_populates="user", viewonly=True, init=False, repr=False
     )
     contact_methods: Mapped[List["DBContactMethod"]] = relationship(
         back_populates="user", init=False, repr=False
@@ -494,3 +520,150 @@ class DBDirFileGroupPermissions(Base):
     )
     file_id: Mapped[int] = mapped_column(primary_key=True)
     group_id: Mapped[int] = mapped_column(primary_key=True)
+
+
+class DBBillingPayment(Base):
+    __tablename__ = "billing_payment"
+    __table_args__ = (sql_schema.UniqueConstraint("id", "community_id"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True, init=False, repr=False)
+    community_id: Mapped[int] = mapped_column(
+        ForeignKey("community.id", ondelete="CASCADE")
+    )
+    user_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("user.id", ondelete="RESTRICT")
+    )
+
+    amount: Mapped[int]
+    payment_date: Mapped[datetime.datetime]
+
+    community: Mapped[DBCommunity] = relationship(viewonly=True, init=False, repr=False)
+    charges: Mapped[List["DBBillingCharge"]] = relationship(
+        secondary="billing_charge_payments",
+        back_populates="payments",
+        init=False,
+        repr=False,
+    )
+
+
+class DBBillingCharge(Base):
+    __tablename__ = "billing_charge"
+    __table_args__ = (
+        sql_schema.UniqueConstraint("id", "community_id"),
+        sql_schema.ForeignKeyConstraint(
+            ["residence_id", "community_id"],
+            ["residence.id", "residence.community_id"],
+            ondelete="RESTRICT",
+        ),
+        sql_schema.CheckConstraint(
+            "(residence_id IS NULL AND user_id IS NOT NULL) OR "
+            "(user_id IS NULL AND residence_id IS NOT NULL)"
+        ),
+    )
+    # CASCADE when community is deleted, because deleting the community can
+    # only mean that they are no longer interested in using the service. But
+    # if a residence is deleted, what should be done with the billing data?
+    # Unclear, so RESTRICT and have the programmer delete this data first
+    # if the deletion is intentional. Same reason for user_id RESTRICT.
+
+    id: Mapped[int] = mapped_column(primary_key=True, init=False, repr=False)
+    community_id: Mapped[int] = mapped_column(
+        ForeignKey("community.id", ondelete="CASCADE")
+    )
+    residence_id: Mapped[Optional[int]]
+    user_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("user.id", ondelete="RESTRICT")
+    )
+
+    name: Mapped[str]
+    amount: Mapped[int]
+    paid_off: Mapped[bool]
+    charge_date: Mapped[datetime.datetime]
+    due_date: Mapped[datetime.date]
+
+    community: Mapped[DBCommunity] = relationship(
+        viewonly=True, init=False, repr=False, back_populates="billing_charges"
+    )
+    residence: Mapped[Optional[DBResidence]] = relationship(
+        init=False, repr=False, back_populates="billing_charges"
+    )
+    user: Mapped[Optional[DBUser]] = relationship(
+        init=False, repr=False, back_populates="billing_charges"
+    )
+    payments: Mapped[List[DBBillingPayment]] = relationship(
+        secondary="billing_charge_payments",
+        back_populates="charges",
+        init=False,
+        repr=False,
+    )
+
+
+class DBBillingRecurringCharge(Base):
+    __tablename__ = "billing_recurring_charge"
+    __table_args__ = (
+        sql_schema.ForeignKeyConstraint(
+            ["residence_id", "community_id"],
+            ["residence.id", "residence.community_id"],
+            ondelete="RESTRICT",
+        ),
+        sql_schema.CheckConstraint(
+            "(residence_id IS NULL AND user_id IS NOT NULL) OR "
+            "(user_id IS NULL AND residence_id IS NOT NULL)"
+        ),
+    )
+    # CASCADE when community is deleted, because deleting the community can
+    # only mean that they are no longer interested in using the service. But
+    # if a residence is deleted, what should be done with the billing data?
+    # Unclear, so RESTRICT and have the programmer delete this data first
+    # if the deletion is intentional. Same reason for user_id RESTRICT.
+
+    id: Mapped[int] = mapped_column(primary_key=True, init=False, repr=False)
+    community_id: Mapped[int] = mapped_column(
+        ForeignKey("community.id", ondelete="CASCADE")
+    )
+    residence_id: Mapped[Optional[int]]
+    user_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("user.id", ondelete="RESTRICT")
+    )
+
+    name: Mapped[str]
+    amount: Mapped[int]
+    frequency: Mapped[BillingFrequency]
+    frequency_skip: Mapped[int] = mapped_column(insert_default=1)
+    time_to_pay = Mapped[datetime.timedelta]
+    next_charge_date: Mapped[datetime.datetime]
+
+    community: Mapped[DBCommunity] = relationship(
+        viewonly=True,
+        init=False,
+        repr=False,
+        back_populates="recurring_billing_charges",
+    )
+    residence: Mapped[Optional[DBResidence]] = relationship(
+        init=False, repr=False, back_populates="recurring_billing_charges"
+    )
+    user: Mapped[Optional[DBUser]] = relationship(
+        init=False, repr=False, back_populates="recurring_billing_charges"
+    )
+
+
+class DBBillingChargePayments(Base):
+    __tablename__ = "billing_charge_payments"
+    __table_args__ = (
+        sql_schema.ForeignKeyConstraint(
+            ["payment_id", "community_id"],
+            ["billing_payment.id", "billing_payment.community_id"],
+            ondelete="CASCADE",
+        ),
+        sql_schema.ForeignKeyConstraint(
+            ["charge_id", "community_id"],
+            ["billing_charge.id", "billing_charge.community_id"],
+            ondelete="CASCADE",
+        ),
+    )
+
+    community_id: Mapped[int] = mapped_column(
+        ForeignKey("community.id", ondelete="CASCADE"), primary_key=True
+    )
+    payment_id: Mapped[int] = mapped_column(primary_key=True)
+    charge_id: Mapped[int] = mapped_column(primary_key=True)

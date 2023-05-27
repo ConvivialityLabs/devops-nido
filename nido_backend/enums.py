@@ -14,9 +14,16 @@
 #  You should have received a copy of the GNU Affero General Public License
 #  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-from enum import Flag, auto
+from enum import Enum, Flag, auto
 
 import strawberry
+
+
+class BillingFrequency(Enum):
+    YEARLY = auto()
+    MONTHLY = auto()
+    WEEKLY = auto()
+    DAILY = auto()
 
 
 @strawberry.enum
