@@ -15,14 +15,13 @@
 #  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import datetime
-import enum
 from dataclasses import field, make_dataclass
 from functools import reduce
 from typing import List, Optional
 
 import sqlalchemy.schema as sql_schema
 import sqlalchemy.types as sql_types
-from sqlalchemy import Enum, ForeignKey, String
+from sqlalchemy import ForeignKey
 from sqlalchemy.ext.hybrid import hybrid_method, hybrid_property
 from sqlalchemy.orm import (
     DeclarativeBase,
@@ -32,7 +31,7 @@ from sqlalchemy.orm import (
     relationship,
 )
 
-from .enums import BillingFrequency, PermissionsFlag
+from .enums import BillingFrequency, ContactMethodType, PermissionsFlag
 
 
 class BooleanFlag(sql_types.TypeDecorator):
@@ -372,16 +371,12 @@ class DBRight(Base, PermissionsMixin):  # type: ignore
     )
 
 
-class ContactType(enum.Enum):
-    Email = 1
-
-
 class DBContactMethod(Base):
     __tablename__ = "contact_method"
 
     id: Mapped[int] = mapped_column(primary_key=True, init=False, repr=False)
     user_id: Mapped[int] = mapped_column(ForeignKey("user.id", ondelete="CASCADE"))
-    type: Mapped[ContactType] = mapped_column(init=False, repr=False)
+    type: Mapped[ContactMethodType] = mapped_column(init=False, repr=False)
 
     user: Mapped[DBUser] = relationship(
         back_populates="contact_methods", init=False, repr=False
@@ -396,7 +391,7 @@ class DBEmailContact(DBContactMethod):
     email: Mapped[str] = mapped_column(unique=True, nullable=True)
 
     __mapper_args__ = {
-        "polymorphic_identity": ContactType.Email,
+        "polymorphic_identity": ContactMethodType.Email,
         "polymorphic_load": "inline",
     }
 

@@ -26,6 +26,10 @@ class BillingFrequency(Enum):
     DAILY = auto()
 
 
+class ContactMethodType(Enum):
+    Email = auto()
+
+
 @strawberry.enum
 class PermissionsFlag(Flag):
     CAN_DELEGATE = auto()
