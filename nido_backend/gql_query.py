@@ -14,6 +14,7 @@
 #  You should have received a copy of the GNU Affero General Public License
 #  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import datetime
 from typing import List, Optional
 
 import strawberry
@@ -22,6 +23,8 @@ from strawberry.types.nodes import SelectedField
 
 from .authorization import oso
 from .db_models import (
+    DBBillingCharge,
+    DBBillingPayment,
     DBCommunity,
     DBContactMethod,
     DBEmailContact,
@@ -50,6 +53,14 @@ class Community:
     @strawberry.field
     def residences(self) -> Optional[List["Residence"]]:
         return [Residence(db=r) for r in self.db.residences]
+
+    @strawberry.field
+    def billing_charges(self) -> Optional[List["BillingCharge"]]:
+        return [BillingCharge(db=bc) for bc in self.db.billing_charges]
+
+    @strawberry.field
+    def billing_payments(self) -> Optional[List["BillingPayment"]]:
+        return [BillingPayment(db=bp) for bp in self.db.billing_payments]
 
     @strawberry.field
     def groups(self, info: Info) -> Optional[List["Group"]]:
@@ -100,6 +111,10 @@ class Residence:
     @strawberry.field
     def occupants(self) -> Optional[List["User"]]:
         return [User(db=u) for u in self.db.occupants]
+
+    @strawberry.field
+    def billing_charges(self) -> Optional[List["BillingCharge"]]:
+        return [BillingCharge(db=bc) for bc in self.db.billing_charges]
 
 
 @strawberry.type
@@ -226,6 +241,56 @@ class EmailContact(ContactMethod):
     @strawberry.field
     def email(self) -> str:
         return self.db.email
+
+
+@strawberry.type
+class BillingPayment:
+    db: strawberry.Private[DBBillingPayment]
+
+    @strawberry.field
+    def id(self) -> strawberry.ID:
+        return encode_gql_id(DBBillingPayment.__tablename__, self.db.id)
+
+    @strawberry.field
+    def amount(self) -> int:
+        return self.db.amount
+
+    @strawberry.field
+    def payment_date(self) -> datetime.datetime:
+        return self.db.payment_date
+
+    @strawberry.field
+    def charges(self) -> Optional[List["BillingCharge"]]:
+        return [BillingCharge(db=c) for c in self.db.charges]
+
+
+@strawberry.type
+class BillingCharge:
+    db: strawberry.Private[DBBillingCharge]
+
+    @strawberry.field
+    def id(self) -> strawberry.ID:
+        return encode_gql_id(DBBillingCharge.__tablename__, self.db.id)
+
+    @strawberry.field
+    def name(self) -> str:
+        return self.db.name
+
+    @strawberry.field
+    def amount(self) -> int:
+        return self.db.amount
+
+    @strawberry.field
+    def charge_date(self) -> datetime.datetime:
+        return self.db.charge_date
+
+    @strawberry.field
+    def due_date(self) -> datetime.date:
+        return self.db.due_date
+
+    @strawberry.field
+    def payments(self) -> Optional[List[BillingPayment]]:
+        return [BillingPayment(db=p) for p in self.db.payments]
 
 
 @strawberry.type

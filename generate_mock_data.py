@@ -1,8 +1,12 @@
 #!/usr/bin/env python
+import datetime
+
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 
 from nido_backend.db_models import (
+    DBBillingCharge,
+    DBBillingPayment,
     DBCommunity,
     DBDirFolder,
     DBEmailContact,
@@ -1764,12 +1768,42 @@ def seed_db(db_session):
         ],
     ]
 
+    first_of_month = datetime.datetime.now().replace(day=1, hour=0, minute=0, second=0)
     for residence in residences:
         for name in usernames_by_residence[residence.id - 1]:
             user = DBUser(**name)
             residence.occupants.append(user)
             db_session.add(user)
-            db_session.add(residence)
+
+        for i in range(1, 13):
+            year = (
+                first_of_month.year
+                if i <= first_of_month.month
+                else first_of_month.year - 1
+            )
+            charge_date = first_of_month.replace(year=year, month=i)
+            charge = DBBillingCharge(
+                community_id=residence.community_id,
+                residence_id=residence.id,
+                user_id=None,
+                name=charge_date.strftime("%b %Y Monthly Assessment"),
+                amount=10000,
+                paid_off=True,
+                charge_date=charge_date,
+                due_date=charge_date + datetime.timedelta(days=15),
+            )
+            payment = DBBillingPayment(
+                community_id=residence.community_id,
+                user_id=None,
+                amount=10000,
+                payment_date=charge_date,
+            )
+
+            if i != first_of_month.month:
+                charge.payments.append(payment)
+            residence.billing_charges.append(charge)
+            db_session.add(charge)
+        db_session.add(residence)
 
     db_session.commit()
 
