@@ -22,6 +22,7 @@ from typing import List, Optional
 import sqlalchemy.schema as sql_schema
 import sqlalchemy.types as sql_types
 from sqlalchemy import ForeignKey
+from sqlalchemy import func as sql_func
 from sqlalchemy.ext.hybrid import hybrid_method, hybrid_property
 from sqlalchemy.orm import (
     DeclarativeBase,
@@ -565,15 +566,17 @@ class DBBillingCharge(Base):
     community_id: Mapped[int] = mapped_column(
         ForeignKey("community.id", ondelete="CASCADE")
     )
-    residence_id: Mapped[Optional[int]]
+    residence_id: Mapped[Optional[int]] = mapped_column(init=False)
     user_id: Mapped[Optional[int]] = mapped_column(
-        ForeignKey("user.id", ondelete="RESTRICT")
+        ForeignKey("user.id", ondelete="RESTRICT"),
+        init=False,
     )
 
     name: Mapped[str]
     amount: Mapped[int]
-    paid_off: Mapped[bool]
-    charge_date: Mapped[datetime.datetime]
+    charge_date: Mapped[datetime.datetime] = mapped_column(
+        init=False, server_default=sql_func.now()
+    )
     due_date: Mapped[datetime.date]
 
     community: Mapped[DBCommunity] = relationship(

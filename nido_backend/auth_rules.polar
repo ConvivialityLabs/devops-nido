@@ -54,5 +54,17 @@ resource ContactMethod {
 has_relation(user: User, "owner", contact_method: ContactMethod) if
     contact_method.user.id = user.id;
 
+
+resource BillingCharge {
+    permissions = ["query", "create", "edit", "delete"];
+
+    "create" if "edit";
+    "delete" if "edit";
+}
+
+has_permission(_: User, "edit", _: BillingCharge);
+has_permission(_: User, "query", _: BillingCharge);
+
+
 allow(actor, action, resource) if
     has_permission(actor, action, resource);

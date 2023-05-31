@@ -16,6 +16,7 @@
 
 import strawberry
 
+from .gql_mutation_billing_charge import BillingChargeMutations
 from .gql_mutation_contact_method import ContactMethodMutations
 from .gql_mutation_group import GroupMutations
 from .gql_mutation_right import RightMutations
@@ -23,6 +24,9 @@ from .gql_mutation_right import RightMutations
 
 @strawberry.type
 class Mutation:
+    billing_charges: BillingChargeMutations = strawberry.field(
+        resolver=lambda: BillingChargeMutations()
+    )
     contact_methods: ContactMethodMutations = strawberry.field(
         resolver=lambda: ContactMethodMutations()
     )

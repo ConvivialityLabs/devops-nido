@@ -1784,14 +1784,11 @@ def seed_db(db_session):
             charge_date = first_of_month.replace(year=year, month=i)
             charge = DBBillingCharge(
                 community_id=residence.community_id,
-                residence_id=residence.id,
-                user_id=None,
                 name=charge_date.strftime("%b %Y Monthly Assessment"),
                 amount=10000,
-                paid_off=True,
-                charge_date=charge_date,
                 due_date=charge_date + datetime.timedelta(days=15),
             )
+            charge.charge_date = charge_date
             payment = DBBillingPayment(
                 community_id=residence.community_id,
                 user_id=None,

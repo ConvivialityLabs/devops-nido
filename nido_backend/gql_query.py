@@ -55,8 +55,13 @@ class Community:
         return [Residence(db=r) for r in self.db.residences]
 
     @strawberry.field
-    def billing_charges(self) -> Optional[List["BillingCharge"]]:
-        return [BillingCharge(db=bc) for bc in self.db.billing_charges]
+    def billing_charges(self, info: Info) -> Optional[List["BillingCharge"]]:
+        au = info.context.active_user
+        return [
+            BillingCharge(db=bc)
+            for bc in self.db.billing_charges
+            if oso.is_allowed(au, "query", bc)
+        ]
 
     @strawberry.field
     def billing_payments(self) -> Optional[List["BillingPayment"]]:
@@ -113,8 +118,13 @@ class Residence:
         return [User(db=u) for u in self.db.occupants]
 
     @strawberry.field
-    def billing_charges(self) -> Optional[List["BillingCharge"]]:
-        return [BillingCharge(db=bc) for bc in self.db.billing_charges]
+    def billing_charges(self, info: Info) -> Optional[List["BillingCharge"]]:
+        au = info.context.active_user
+        return [
+            BillingCharge(db=bc)
+            for bc in self.db.billing_charges
+            if oso.is_allowed(au, "query", bc)
+        ]
 
 
 @strawberry.type
@@ -260,8 +270,13 @@ class BillingPayment:
         return self.db.payment_date
 
     @strawberry.field
-    def charges(self) -> Optional[List["BillingCharge"]]:
-        return [BillingCharge(db=c) for c in self.db.charges]
+    def charges(self, info: Info) -> Optional[List["BillingCharge"]]:
+        au = info.context.active_user
+        return [
+            BillingCharge(db=bc)
+            for bc in self.db.charges
+            if oso.is_allowed(au, "query", bc)
+        ]
 
 
 @strawberry.type
