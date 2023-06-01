@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}My Household{% endblock %}
+{% block body_id %}household{% endblock %}
+{% block body %}
+<main>
+  <h1>{{self.title()}}</h1>
+  {% for residence in residences %}
+  <h2>{{residence.unit_no}} {{residence.street}}</h2>
+    <h3>Residence Information</h3>
+    <dl>
+      <dt>Address:</dt>
+      <dd>{{residence.street}}
+      <br/>{{residence.unit_no}}
+      <br/>{{residence.locality}}, {{residence.region}}
+      {{residence.postcode}}</dd>
+    </dl>
+    <h3>Residence Occupants</h3>
+    <ul>
+      {% for member in residence.occupants %}
+      <li>{{member.full_name}}</li>
+      {% endfor %}
+    </ul>
+  {% endfor %}
+</main>
+{% endblock %}

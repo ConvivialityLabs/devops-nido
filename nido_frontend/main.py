@@ -26,6 +26,8 @@ from nido_backend.gql_schema import SchemaContext, create_schema
 
 from .authentication import bp as auth_bp
 from .authentication import login_required
+from .household import bp as household_bp
+from .household import index as household_index
 
 
 class GraphQLWithDB(GraphQLView):
@@ -68,16 +70,13 @@ def create_app(testing_config=None):
         Session.remove()
 
     app.register_blueprint(auth_bp)
+    app.register_blueprint(household_bp, url_prefix="/my-household")
+    app.add_url_rule("/", endpoint="index", view_func=household_index)
 
     if app.debug:
         app.add_url_rule(
             "/api/graphql",
             view_func=GraphQLWithDB.as_view("graphql_view", schema=create_schema()),
         )
-
-    @app.route("/")
-    @login_required
-    def index():
-        return "Hello World!"
 
     return app
