@@ -13,6 +13,8 @@
 #
 #  You should have received a copy of the GNU Affero General Public License
 #  along with this program.  If not, see <https://www.gnu.org/licenses/>.
+from importlib.resources import as_file, files
+
 from oso import AuthorizationError, ForbiddenError, NotFoundError, Oso
 
 from .db_models import DBBillingCharge, DBContactMethod, DBGroup, DBRight, DBUser
@@ -28,4 +30,5 @@ oso.register_class(DBUser, name="User")
 
 oso.register_class(PermissionsFlag, name="Permissions")
 
-oso.load_files(["nido_backend/auth_rules.polar"])
+with as_file(files("nido_backend").joinpath("auth_rules.polar")) as rules:
+    oso.load_files([rules])

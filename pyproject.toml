@@ -14,9 +14,9 @@ packages = [
 ]
 
 [tool.poetry.dependencies]
-python = "^3.8"
+python = "^3.9"
 sqlalchemy = "^2.0.4"
-strawberry-graphql = {version = "0.177.1", extras = ["asgi"]}
+strawberry-graphql = "0.177.1"
 oso = "^0.27.0"
 flask = "^2.0.0"
 

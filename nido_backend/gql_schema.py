@@ -17,7 +17,7 @@
 from dataclasses import dataclass
 from typing import Optional, Type
 
-from sqlalchemy.orm import scoped_session
+from sqlalchemy.orm import Session
 from strawberry import Schema
 from strawberry.extensions import SchemaExtension
 
@@ -29,29 +29,23 @@ from .gql_query import EmailContact, Query
 
 @dataclass
 class SchemaContext:
-    db_session: scoped_session
+    db_session: Session
     user_id: Optional[int] = None
     community_id: Optional[int] = None
 
     @property
     def active_user(self):
         if self.user_id:
-            return self.db_session().get(DBUser, self.user_id)
+            return self.db_session.get(DBUser, self.user_id)
         else:
             return None
 
     @property
     def active_community(self):
         if self.community_id:
-            return self.db_session().get(DBCommunity, self.community_id)
+            return self.db_session.get(DBCommunity, self.community_id)
         else:
             return None
-
-
-class DBSessionExtension(SchemaExtension):
-    def on_operation(self):
-        yield
-        self.execution_context.context.db_session.remove()
 
 
 def create_schema(SchemaClass: Type[Schema] = Schema, **kwargs) -> Schema:
@@ -59,6 +53,5 @@ def create_schema(SchemaClass: Type[Schema] = Schema, **kwargs) -> Schema:
         query=Query,
         mutation=Mutation,
         types=[EmailContact, AlreadyTaken, DatabaseError, NotFound, Unauthorized],
-        extensions=[DBSessionExtension],
         **kwargs
     )

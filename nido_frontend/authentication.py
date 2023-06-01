@@ -16,10 +16,25 @@
 
 import functools
 
-from flask import Blueprint, g, redirect, render_template, request, session, url_for
+from flask import (
+    Blueprint,
+    current_app,
+    g,
+    redirect,
+    render_template,
+    request,
+    session,
+    url_for,
+)
 from sqlalchemy import select
+from sqlalchemy.exc import MultipleResultsFound, NoResultFound
 
-from nido_backend.db_models import DBContactMethod, DBEmailContact, DBUser
+from nido_backend.db_models import (
+    DBContactMethod,
+    DBEmailContact,
+    DBResidenceOccupancy,
+    DBUser,
+)
 
 
 ## Create login_required decorator
@@ -41,13 +56,28 @@ bp = Blueprint("authentication", __name__)
 def login():
     if request.method == "POST":
         ident = request.form.get("ident")
-        stmt = select(DBContactMethod.user_id).where(DBEmailContact.email == ident)
+        stmt = (
+            select(DBContactMethod.user_id, DBResidenceOccupancy.community_id)
+            .select_from(DBContactMethod)
+            .join(
+                DBResidenceOccupancy,
+                DBContactMethod.user_id == DBResidenceOccupancy.user_id,
+            )
+            .distinct()
+            .where(DBEmailContact.email == ident)
+        )
         try:
-            user_id = g.db_session.execute(stmt).scalar_one()
-        except:
+            (user_id, community_id) = g.db_session.execute(stmt).one()
+        except NoResultFound:
             pass
+        except MultipleResultsFound:
+            # TODO: Design what to do when a user belongs to multiple communities
+            pass
+        except Exception as e:
+            current_app.logger.error(f"Unexpected error during login of {ident}: {e}")
         else:
             session["user_id"] = user_id
+            session["community_id"] = community_id
             # The flask-login docs insist that it's necessary to validate the
             # next_url parameter, but that's for when it's a url query. Since
             # here it's passed as a secure server-generated cookie, it should
@@ -60,5 +90,6 @@ def login():
 
 @bp.route("/logout")
 def logout():
-    user_id = session.pop("user_id")
+    user_id = session.pop("user_id", None)
+    community_id = session.pop("community_id", None)
     return redirect(url_for(".login"))

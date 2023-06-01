@@ -15,13 +15,26 @@
 #  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import os
+from typing import Any
 
-from flask import Flask, g, render_template
-from sqlalchemy import create_engine
+from flask import Flask, Request, Response, g, render_template, session
+from sqlalchemy import Engine, create_engine
 from sqlalchemy.orm import scoped_session, sessionmaker
+from strawberry.flask.views import GraphQLView
+
+from nido_backend.gql_schema import SchemaContext, create_schema
 
 from .authentication import bp as auth_bp
 from .authentication import login_required
+
+
+class GraphQLWithDB(GraphQLView):
+    def get_context(self, request: Request, response: Response) -> Any:
+        user_id = session.get("user_id")
+        community_id = session.get("community_id")
+        db_session = g.db_session
+
+        return SchemaContext(db_session, user_id, community_id)
 
 
 def create_app(testing_config=None):
@@ -55,6 +68,12 @@ def create_app(testing_config=None):
         Session.remove()
 
     app.register_blueprint(auth_bp)
+
+    if app.debug:
+        app.add_url_rule(
+            "/api/graphql",
+            view_func=GraphQLWithDB.as_view("graphql_view", schema=create_schema()),
+        )
 
     @app.route("/")
     @login_required
