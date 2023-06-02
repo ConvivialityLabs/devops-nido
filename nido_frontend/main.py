@@ -14,12 +14,14 @@
 #  You should have received a copy of the GNU Affero General Public License
 #  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import dataclasses
 import os
 from typing import Any
 
 from flask import Flask, Request, Response, g, render_template, session
 from sqlalchemy import Engine, create_engine
 from sqlalchemy.orm import scoped_session, sessionmaker
+from strawberry import Schema
 from strawberry.flask.views import GraphQLView
 
 from nido_backend.gql_schema import SchemaContext, create_schema
@@ -38,6 +40,36 @@ class GraphQLWithDB(GraphQLView):
         db_session = g.db_session
 
         return SchemaContext(db_session, user_id, community_id)
+
+
+class GraphQLDataDict(dict):
+    def __getattr__(self, attr):
+        words = [
+            word.title() if i > 0 else word for i, word in enumerate(attr.split("_"))
+        ]
+        camel_case_attr = "".join(words)
+        result = self.get(camel_case_attr)
+        if isinstance(result, dict):
+            return GraphQLDataDict(result)
+        elif isinstance(result, list):
+            return [GraphQLDataDict(i) for i in result]
+        else:
+            return result
+
+
+@dataclasses.dataclass
+class IntegratedGraphQLClient:
+    gql_schema: Schema
+
+    def execute_query(self, query, variable_values=None):
+        user_id = session.get("user_id")
+        community_id = session.get("community_id")
+        db_session = g.db_session
+
+        context = SchemaContext(db_session, user_id, community_id)
+        result = self.gql_schema.execute_sync(query, variable_values, context)
+        result.data = GraphQLDataDict(result.data)
+        return result
 
 
 def create_app(testing_config=None):
@@ -70,6 +102,13 @@ def create_app(testing_config=None):
     def end_db_session(_response):
         Session.remove()
 
+    gql_schema = create_schema()
+    gql_client = IntegratedGraphQLClient(gql_schema)
+
+    @app.before_request
+    def create_gql_client():
+        g.gql_client = gql_client
+
     app.register_blueprint(auth_bp)
     app.register_blueprint(household_bp, url_prefix="/my-household")
     app.register_blueprint(rd_bp, url_prefix="/resident-directory")
@@ -78,7 +117,7 @@ def create_app(testing_config=None):
     if app.debug:
         app.add_url_rule(
             "/api/graphql",
-            view_func=GraphQLWithDB.as_view("graphql_view", schema=create_schema()),
+            view_func=GraphQLWithDB.as_view("graphql_view", schema=gql_schema),
         )
 
     return app

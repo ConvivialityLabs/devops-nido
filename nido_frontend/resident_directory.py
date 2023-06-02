@@ -58,9 +58,6 @@ query ResidentDir {
     }
   }
 }"""
-
-    community_id = session.get("community_id")
-    # Use SQL for quick mockup until GraphQL story gets figured out
-    # TODO: Replace with GraphQL
-    community = g.db_session.get(DBCommunity, community_id)
+    gql_result = g.gql_client.execute_query(gql_query)
+    community = gql_result.data.active_community
     return render_template("resident-dir.html", community=community, show_street=True)
