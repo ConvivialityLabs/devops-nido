@@ -20,6 +20,7 @@ from typing import Any, List, Tuple
 import strawberry
 from sqlalchemy.orm import ColumnProperty, Relationship, load_only, selectinload
 from strawberry.types import Info
+from strawberry.types.nodes import InlineFragment
 
 
 def encode_gql_id(tablename: str, id: int):
@@ -34,7 +35,16 @@ def decode_gql_id(id: str) -> Tuple[str, int]:
 def prepare_orm_query(info: Info, db_model_class: Any, gql_field: Any):
     db_column_loads = []
     db_relationship_loads = []
+    opts = []
+
     for field in gql_field.selections:
+        if isinstance(field, InlineFragment):
+            # XXX: Right now, an InlineFrangment can be skipped because the only
+            # polymorphic type is DBContactMethod and that has
+            # "polymorphic_load": "inline". But future development might need to
+            # put substantial logic here.
+            continue
+
         # XXX SelectedField.name comes in camelCase but the db columns are in
         # snake_case. The line below converts them. It's a mess, hopefully a
         # future library version includes a attribute with snake_case on the
@@ -54,7 +64,10 @@ def prepare_orm_query(info: Info, db_model_class: Any, gql_field: Any):
             sub_opts = prepare_orm_query(info, db_model_attr.mapper.class_, field)
             db_relationship_loads.append(selectinload(db_model_attr).options(*sub_opts))
 
-    opts = []
+    if db_model_class.__name__ == "DBContactMethod":
+        # Needed for oso policy evaluation
+        db_column_loads.append(db_model_class.user_id)
+
     if len(db_column_loads) > 0:
         opts.append(load_only(*db_column_loads))
     else:

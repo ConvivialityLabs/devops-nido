@@ -52,7 +52,7 @@ resource ContactMethod {
 }
 
 has_relation(user: User, "owner", contact_method: ContactMethod) if
-    contact_method.user.id = user.id;
+    contact_method.user_id = user.id;
 
 
 resource BillingCharge {
