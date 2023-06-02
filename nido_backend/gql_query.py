@@ -145,11 +145,11 @@ class User:
 
     @strawberry.field
     def full_name(self) -> str:
-        return f"{self.db.personal_name} {self.db.family_name}"
+        return self.db.full_name
 
     @strawberry.field
     def collation_name(self) -> str:
-        return f"{self.db.family_name}, {self.db.personal_name}"
+        return self.db.collation_name
 
     @strawberry.field
     def contact_methods(self, info: Info) -> List["ContactMethod"]:

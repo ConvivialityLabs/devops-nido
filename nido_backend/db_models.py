@@ -28,6 +28,7 @@ from sqlalchemy.orm import (
     DeclarativeBase,
     Mapped,
     MappedAsDataclass,
+    column_property,
     mapped_column,
     relationship,
 )
@@ -161,8 +162,10 @@ class DBUser(Base):
     __tablename__ = "user"
 
     id: Mapped[int] = mapped_column(primary_key=True, init=False, repr=False)
-    personal_name: Mapped[str]
-    family_name: Mapped[str]
+    personal_name: Mapped[str] = mapped_column()
+    family_name: Mapped[str] = mapped_column()
+    full_name: Mapped[str] = column_property(personal_name + " " + family_name)
+    collation_name: Mapped[str] = column_property(family_name + ", " + personal_name)
 
     residences: Mapped[List[DBResidence]] = relationship(
         secondary="residence_occupancy",
