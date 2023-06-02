@@ -30,6 +30,7 @@ from sqlalchemy import select
 from nido_backend.db_models import DBResidence, DBResidenceOccupancy
 
 from .authentication import login_required
+from .main_menu import get_main_menu
 
 bp = Blueprint("household", __name__)
 
@@ -59,4 +60,7 @@ query MyHousehold {
         .where(DBResidenceOccupancy.user_id == user_id)
     )
     residences = g.db_session.scalars(stmt)
-    return render_template("household.html", residences=residences)
+    main_menu_links = get_main_menu()
+    return render_template(
+        "household.html", main_menu_links=main_menu_links, residences=residences
+    )

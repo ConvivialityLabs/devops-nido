@@ -1,0 +1,9 @@
+<input id="main-menu-toggle" type="checkbox"/>
+<nav id="main-menu">
+  <ul>
+    {% for link in main_menu_links %}
+      <li><a href="{{link.href}}">{{link.name}}</a></li>
+    {% endfor %}
+  </ul>
+  <label for="main-menu-toggle">Colapse/Expand Menu</label>
+</nav>

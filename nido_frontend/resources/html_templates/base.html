@@ -8,6 +8,9 @@
   {% endblock %}
 </head>
 <body id="{% block body_id %}{% endblock %}">
+  {% if main_menu_links %}
+    {% include "main-menu.html" %}
+  {% endif %}
   {% block body %}{% endblock %}
 </body>
 </html>

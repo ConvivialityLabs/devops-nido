@@ -30,6 +30,7 @@ from sqlalchemy import select
 from nido_backend.db_models import DBCommunity
 
 from .authentication import login_required
+from .main_menu import get_main_menu
 
 bp = Blueprint("resident_dir", __name__)
 
@@ -60,4 +61,10 @@ query ResidentDir {
 }"""
     gql_result = g.gql_client.execute_query(gql_query)
     community = gql_result.data.active_community
-    return render_template("resident-dir.html", community=community, show_street=True)
+    main_menu_links = get_main_menu()
+    return render_template(
+        "resident-dir.html",
+        main_menu_links=main_menu_links,
+        community=community,
+        show_street=True,
+    )
