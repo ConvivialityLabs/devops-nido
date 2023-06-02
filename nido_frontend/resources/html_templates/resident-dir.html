@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %}{{community.name}} Resident Directory{% endblock %}
+{% block body_id %}resident-dir{% endblock %}
+{% block body %}
+<main>
+  <h1>{{self.title()}}</h1>
+  <table>
+    <thead>
+      <tr>
+        <th>Unit</th>
+        <th>Name</th>
+        <th>Phone</th>
+        <th>Email</th>
+      </tr>
+    </thead>
+    {% for listing in community.residences %}
+      <tr>
+        <td rowspan="{{listing.occupants|count or 1}}">
+          {% if show_street %}
+            {{listing.street}}<br/>
+          {% endif %}
+          {% if listing.unit_no %}
+          {{listing.unit_no}}
+          {% endif %}
+        </td>
+        {% if listing.occupants %}
+          {% for resident in listing.occupants %}
+            <td>{{resident.full_name}}</td>
+            <td><!--phone--></td>
+            <td>
+              {% for email in resident.emails %}
+                {{email.email}},
+              {% endfor %}
+            </td>
+            {% if not loop.last %}
+              </tr>
+              <tr>
+            {% endif %}
+          {% endfor %}
+        {% else %}
+          <td colspan="3">Vacant</td>
+        {% endif %}
+      </tr>
+    {% endfor %}
+  </table>
+</main>
+{% endblock %}

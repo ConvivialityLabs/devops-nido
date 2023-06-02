@@ -28,6 +28,7 @@ from .authentication import bp as auth_bp
 from .authentication import login_required
 from .household import bp as household_bp
 from .household import index as household_index
+from .resident_directory import bp as rd_bp
 
 
 class GraphQLWithDB(GraphQLView):
@@ -71,6 +72,7 @@ def create_app(testing_config=None):
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(household_bp, url_prefix="/my-household")
+    app.register_blueprint(rd_bp, url_prefix="/resident-directory")
     app.add_url_rule("/", endpoint="index", view_func=household_index)
 
     if app.debug:
