@@ -152,6 +152,16 @@ class User:
         return self.db.collation_name
 
     @strawberry.field
+    def residences(self, info: Info) -> Optional[List["Residence"]]:
+        ac = info.context.active_community
+        if ac:
+            return [
+                Residence(db=r) for r in self.db.residences if r.community_id == ac.id
+            ]
+        else:
+            return [Residence(db=r) for r in self.db.residences]
+
+    @strawberry.field
     def contact_methods(self, info: Info) -> List["ContactMethod"]:
         au = info.context.active_user
         if au:

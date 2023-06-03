@@ -47,19 +47,15 @@ query MyHousehold {
       locality
       region
       postcode
+      occupants {
+        fullName
+      }
     }
   }
 }"""
 
-    user_id = session.get("user_id")
-    # Use SQL for quick mockup until GraphQL story gets figured out
-    # TODO: Replace with GraphQL
-    stmt = (
-        select(DBResidence)
-        .join(DBResidenceOccupancy)
-        .where(DBResidenceOccupancy.user_id == user_id)
-    )
-    residences = g.db_session.scalars(stmt)
+    gql_result = g.gql_client.execute_query(gql_query)
+    residences = gql_result.data.active_user.residences
     main_menu_links = get_main_menu()
     return render_template(
         "household.html", main_menu_links=main_menu_links, residences=residences
