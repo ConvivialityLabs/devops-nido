@@ -1,0 +1,115 @@
+body:not(#login) main {
+  margin: 0 0 0 300px;
+  padding: 20px 40px;
+  box-sizing: border-box;
+  height: 100%;
+
+  @media(max-width:699px) {
+    margin-left: 50px;
+  }
+
+  @media print {
+    margin-left: 0;
+  }
+
+}
+
+input#main-menu-toggle {
+  display: none;
+}
+
+input#main-menu-toggle:checked {
+  @media(max-width:699px) {
+    &~ nav#main-menu {
+      width: 300px;
+    }
+  }
+  @media(min-width:700px) {
+    &~ nav#main-menu {
+      width: 50px;
+    }
+
+    &~ main {
+      margin-left: 50px;
+      transition: margin .4s;
+    }
+  }
+}
+
+/* Copyright (c) 2021 by Stephen Scaff (https://codepen.io/StephenScaff/pen/bVbEbJ)
+ * Released under MIT license, see link above */
+
+nav#main-menu {
+  position: fixed;
+  width: 300px;
+  height: 100%;
+  top: 0;
+  background-color: #19222a;
+  z-index: 1;
+  transition: width .4s;
+
+  @media(max-width:699px) {
+    width: 50px;
+  }
+
+  @media print {
+    display: none;
+  }
+
+  ul {
+    display: block;
+    padding: 0;
+    margin: 0;
+    list-style: none;
+    height: calc(100% - 50px);
+    overflow-y: scroll;
+  }
+
+  ul li {
+    margin-left: 0;
+    padding-left: 0;
+    display: inline-block;
+    width: 100%;
+    overflow: hidden;
+    height: 50px;
+  }
+
+  a, label {
+    color: rgba(255,255,255,0.9);
+    text-decoration: none;
+    font-size: 1.5rem;
+    display:block;
+
+    &:hover{
+      background-color: rgba(0,0,0,0.9);
+    }
+
+    &:before {
+      display: inline-block;
+      content: url('/static/icons/link.svg');
+      width: 25px;
+      height: 25px;
+      padding: 12.5px 10px 12.5px 12.5px;
+      vertical-align: middle;
+    }
+
+    &[href="/my-household/"]:before {
+      content: url('/static/icons/household.svg');
+    }
+
+    &[href="/resident-directory/"]:before {
+      content: url('/static/icons/contacts.svg');
+    }
+
+    &[href="/logout"]:before {
+      content: url('/static/icons/logout.svg');
+    }
+  }
+
+  label[for="main-menu-toggle"] {
+    box-sizing: border-box;
+    &:before {
+      content: url('/static/icons/lr-arrows.svg');
+    }
+  }
+}

@@ -12,6 +12,9 @@ packages = [
     { include = "nido_frontend" },
     { include = "nido_backend" },
 ]
+include = [
+    { path = "nido_frontend/resources/static/css/style.css", format = "wheel" },
+]
 
 [tool.poetry.dependencies]
 python = "^3.9"
@@ -26,6 +29,7 @@ pytest = "^7.0.0"
 mypy = "^1.0.0"
 pre-commit = "^3.0.0"
 isort = "^5.12.0"
+libsass = "^0.22.0"
 
 [tool.pytest.ini_options]
 filterwarnings = [

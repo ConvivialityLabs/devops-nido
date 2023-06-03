@@ -11,6 +11,10 @@ trim_trailing_whitespace = true
 indent_style = space
 indent_size = 2
 
+[*.scss]
+indent_style = space
+indent_size = 2
+
 [*.polar]
 indent_style = space
 indent_size = 4

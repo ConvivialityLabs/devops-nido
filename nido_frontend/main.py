@@ -78,6 +78,7 @@ def create_app(testing_config=None):
         instance_path=os.environ.get("NIDO_VARDIR"),
         instance_relative_config=True,
         template_folder="resources/html_templates",
+        static_folder="resources/static",
     )
 
     if testing_config:
@@ -85,6 +86,23 @@ def create_app(testing_config=None):
     else:
         conf_file = os.environ.get("NIDO_CONFIG_FILE") or "nido.cfg"
         app.config.from_pyfile(conf_file)
+
+    try:
+        from sassutils.wsgi import SassMiddleware  # type: ignore
+    except:
+        pass
+    else:
+        app.wsgi_app = SassMiddleware(
+            app.wsgi_app,
+            {
+                "nido_frontend": {
+                    "sass_path": "resources/static/sass",
+                    "css_path": "resources/static/css",
+                    "wsgi_path": "/static/css",
+                    "strip_extension": True,
+                }
+            },
+        )
 
     db_engine = create_engine(
         app.config["DATABASE_URL"],
