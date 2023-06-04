@@ -23,6 +23,7 @@ import sqlalchemy.schema as sql_schema
 import sqlalchemy.types as sql_types
 from sqlalchemy import ForeignKey
 from sqlalchemy import func as sql_func
+from sqlalchemy import select
 from sqlalchemy.ext.hybrid import hybrid_method, hybrid_property
 from sqlalchemy.orm import (
     DeclarativeBase,
@@ -533,13 +534,14 @@ class DBBillingPayment(Base):
         ForeignKey("user.id", ondelete="RESTRICT")
     )
 
-    amount: Mapped[int]
+    amount: Mapped[int] = mapped_column()
     payment_date: Mapped[datetime.datetime]
 
     community: Mapped[DBCommunity] = relationship(viewonly=True, init=False, repr=False)
     charges: Mapped[List["DBBillingCharge"]] = relationship(
-        secondary="billing_charge_payments",
+        secondary="billing_transaction",
         back_populates="payments",
+        viewonly=True,
         init=False,
         repr=False,
     )
@@ -576,7 +578,7 @@ class DBBillingCharge(Base):
     )
 
     name: Mapped[str]
-    amount: Mapped[int]
+    amount: Mapped[int] = mapped_column()
     charge_date: Mapped[datetime.datetime] = mapped_column(
         init=False, server_default=sql_func.now()
     )
@@ -592,8 +594,9 @@ class DBBillingCharge(Base):
         init=False, repr=False, back_populates="billing_charges"
     )
     payments: Mapped[List[DBBillingPayment]] = relationship(
-        secondary="billing_charge_payments",
+        secondary="billing_transaction",
         back_populates="charges",
+        viewonly=True,
         init=False,
         repr=False,
     )
@@ -648,8 +651,8 @@ class DBBillingRecurringCharge(Base):
     )
 
 
-class DBBillingChargePayments(Base):
-    __tablename__ = "billing_charge_payments"
+class DBBillingTransaction(Base):
+    __tablename__ = "billing_transaction"
     __table_args__ = (
         sql_schema.ForeignKeyConstraint(
             ["payment_id", "community_id"],
@@ -661,10 +664,67 @@ class DBBillingChargePayments(Base):
             ["billing_charge.id", "billing_charge.community_id"],
             ondelete="CASCADE",
         ),
+        sql_schema.CheckConstraint("charge_closing_balance >= 0"),
+        sql_schema.CheckConstraint("payment_closing_balance >= 0"),
+        sql_schema.CheckConstraint(
+            "charge_closing_balance = charge_opening_balance - transaction_amount"
+        ),
+        sql_schema.CheckConstraint(
+            "payment_closing_balance = payment_opening_balance - transaction_amount"
+        ),
     )
 
     community_id: Mapped[int] = mapped_column(
-        ForeignKey("community.id", ondelete="CASCADE"), primary_key=True
+        ForeignKey("community.id", ondelete="CASCADE"), primary_key=True, init=False
     )
-    payment_id: Mapped[int] = mapped_column(primary_key=True)
-    charge_id: Mapped[int] = mapped_column(primary_key=True)
+    payment_id: Mapped[int] = mapped_column(primary_key=True, init=False)
+    charge_id: Mapped[int] = mapped_column(primary_key=True, init=False)
+
+    transaction_amount: Mapped[int]
+    charge_opening_balance: Mapped[int] = mapped_column(init=False)
+    charge_closing_balance: Mapped[int] = mapped_column(init=False)
+    payment_opening_balance: Mapped[int] = mapped_column(init=False)
+    payment_closing_balance: Mapped[int] = mapped_column(init=False)
+
+    payment: Mapped["DBBillingPayment"] = relationship(repr=False, overlaps="charge")
+    charge: Mapped["DBBillingCharge"] = relationship(repr=False, overlaps="payment")
+
+    def __post_init__(self):
+        self.charge_opening_balance = (
+            self.charge.remaining_balance
+            if self.charge.remaining_balance is not None
+            else self.charge.amount
+        )
+        self.payment_opening_balance = (
+            self.payment.remaining_balance
+            if self.payment.remaining_balance is not None
+            else self.payment.amount
+        )
+        self.charge_closing_balance = (
+            self.charge_opening_balance - self.transaction_amount
+        )
+        self.payment_closing_balance = (
+            self.payment_opening_balance - self.transaction_amount
+        )
+
+
+DBBillingCharge.remaining_balance = column_property(
+    sql_func.coalesce(
+        select(sql_func.min(DBBillingTransaction.charge_closing_balance))
+        .where(DBBillingTransaction.charge_id == DBBillingCharge.id)
+        .correlate_except(DBBillingTransaction)
+        .scalar_subquery(),
+        DBBillingCharge.amount,
+    )
+)
+
+
+DBBillingPayment.remaining_balance = column_property(
+    sql_func.coalesce(
+        select(sql_func.min(DBBillingTransaction.payment_closing_balance))
+        .where(DBBillingTransaction.payment_id == DBBillingPayment.id)
+        .correlate_except(DBBillingTransaction)
+        .scalar_subquery(),
+        DBBillingPayment.amount,
+    )
+)

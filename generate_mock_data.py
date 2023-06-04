@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from nido_backend.db_models import (
     DBBillingCharge,
     DBBillingPayment,
+    DBBillingTransaction,
     DBCommunity,
     DBDirFolder,
     DBEmailContact,
@@ -1789,6 +1790,7 @@ def seed_db(db_session):
                 due_date=charge_date + datetime.timedelta(days=15),
             )
             charge.charge_date = charge_date
+            residence.billing_charges.append(charge)
             payment = DBBillingPayment(
                 community_id=residence.community_id,
                 user_id=None,
@@ -1796,9 +1798,42 @@ def seed_db(db_session):
                 payment_date=charge_date,
             )
 
-            if i != first_of_month.month:
-                charge.payments.append(payment)
-            residence.billing_charges.append(charge)
+            if residence.id % 3 == 1:
+                # Pays on the first
+                payment_record = DBBillingTransaction(
+                    charge=charge,
+                    payment=payment,
+                    transaction_amount=10000,
+                )
+                db_session.add(payment_record)
+            elif residence.id % 3 == 2:
+                # Pays on the due date; is overdue by one month
+                payment.payment_date = charge.due_date
+                if (
+                    charge.due_date + datetime.timedelta(days=28)
+                    < datetime.datetime.now()
+                ):
+                    payment_record = DBBillingTransaction(
+                        charge=charge,
+                        payment=payment,
+                        transaction_amount=10000,
+                    )
+                    db_session.add(payment_record)
+            elif residence.id % 3 == 0:
+                # Prepaid everything a year ago
+                if i == 12:
+                    payment.amount = payment.amount * 12
+                    payment.payment_date = residence.billing_charges[
+                        first_of_month.month % 12
+                    ].charge_date
+                    for c in residence.billing_charges:
+                        payment_record = DBBillingTransaction(
+                            charge=c,
+                            payment=payment,
+                            transaction_amount=10000,
+                        )
+                        db_session.add(payment_record)
+                        db_session.commit()
             db_session.add(charge)
         db_session.add(residence)
 

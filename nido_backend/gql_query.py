@@ -276,6 +276,10 @@ class BillingPayment:
         return self.db.amount
 
     @strawberry.field
+    def remaining_balance(self) -> int:
+        return self.db.remaining_balance
+
+    @strawberry.field
     def payment_date(self) -> datetime.datetime:
         return self.db.payment_date
 
@@ -304,6 +308,10 @@ class BillingCharge:
     @strawberry.field
     def amount(self) -> int:
         return self.db.amount
+
+    @strawberry.field
+    def remaining_balance(self) -> int:
+        return self.db.remaining_balance
 
     @strawberry.field
     def charge_date(self) -> datetime.datetime:
