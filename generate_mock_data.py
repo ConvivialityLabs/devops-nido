@@ -26,9 +26,9 @@ def td(a1, a2, b1, b2, c1, c2):
                 yield f"{i}{j}{k}"
 
 
-def seed_db(db_session):
+def seed_db(db_session, do_full_seed=False):
     community_names = [
-        "Schneider-Koch",
+        "Testing Community",
         "Nolan-Shields",
         "Bauch-Gerhold",
         "Rogahn-Kulas",
@@ -39,6 +39,8 @@ def seed_db(db_session):
         "Senger-Altenwerth",
         "Rolfson-Durgan",
     ]
+    if not do_full_seed:
+        community_names = community_names[0:1]
     communities = [DBCommunity(n) for n in community_names]
     for c in communities:
         db_session.add(c)
@@ -46,84 +48,131 @@ def seed_db(db_session):
 
     addresses = [
         {
-            "street": "8260 Sycamore Parkway",
-            "locality": "Winston Salem",
-            "postcode": "27116",
-            "region": "North Carolina",
+            "generator": range(1, 6),
+            "unit_no": "Apt",
+            "street": None,
+            "constant": {
+                "street": "8260 Sycamore Parkway",
+                "locality": "Winston Salem",
+                "postcode": "27116",
+                "region": "North Carolina",
+            },
         },
         {
-            "street": "05 Lakeland Pass",
-            "locality": "Dallas",
-            "postcode": "75231",
-            "region": "Texas",
+            "generator": td(1, 5, 0, 6, 0, 10),
+            "unit_no": "Suite",
+            "street": None,
+            "constant": {
+                "street": "05 Lakeland Pass",
+                "locality": "Dallas",
+                "postcode": "75231",
+                "region": "Texas",
+            },
         },
         {
-            "street": "2959 Thierer Park",
-            "locality": "Alpharetta",
-            "postcode": "30022",
-            "region": "Georgia",
+            "generator": range(2, 61, 2),
+            "unit_no": "Unit",
+            "street": None,
+            "constant": {
+                "street": "2959 Thierer Park",
+                "locality": "Alpharetta",
+                "postcode": "30022",
+                "region": "Georgia",
+            },
         },
         {
-            "street": "842 Service Crossing",
-            "locality": "Miami",
-            "postcode": "33185",
-            "region": "Florida",
+            "generator": td(1, 4, 1, 4, 1, 4),
+            "unit_no": "Room",
+            "street": None,
+            "constant": {
+                "street": "842 Service Crossing",
+                "locality": "Miami",
+                "postcode": "33185",
+                "region": "Florida",
+            },
         },
         {
-            "street": "595 Maple Hill",
-            "locality": "Tampa",
-            "postcode": "33680",
-            "region": "Florida",
+            "generator": None,
+            "unit_no": None,
+            "street": None,
+            "constant": {
+                "street": "595 Maple Hill",
+                "locality": "Tampa",
+                "postcode": "33680",
+                "region": "Florida",
+            },
         },
         {
-            "street": "80786 Kedzie Street",
-            "locality": "Roanoke",
-            "postcode": "24048",
-            "region": "Virginia",
+            "generator": None,
+            "unit_no": None,
+            "street": None,
+            "constant": {
+                "street": "80786 Kedzie Street",
+                "locality": "Roanoke",
+                "postcode": "24048",
+                "region": "Virginia",
+            },
         },
         {
-            "street": "65 Cody Point",
-            "locality": "Richmond",
-            "postcode": "23289",
-            "region": "Virginia",
+            "generator": None,
+            "unit_no": None,
+            "street": None,
+            "constant": {
+                "street": "65 Cody Point",
+                "locality": "Richmond",
+                "postcode": "23289",
+                "region": "Virginia",
+            },
         },
         {
-            "street": "3404 Vera Park",
-            "locality": "Saint Petersburg",
-            "postcode": "33742",
-            "region": "Florida",
+            "generator": None,
+            "unit_no": None,
+            "street": None,
+            "constant": {
+                "street": "3404 Vera Park",
+                "locality": "Saint Petersburg",
+                "postcode": "33742",
+                "region": "Florida",
+            },
         },
         {
-            "street": "3089 Quincy Parkway",
-            "locality": "Jackson",
-            "postcode": "39216",
-            "region": "Mississippi",
+            "generator": None,
+            "unit_no": None,
+            "street": None,
+            "constant": {
+                "street": "3089 Quincy Parkway",
+                "locality": "Jackson",
+                "postcode": "39216",
+                "region": "Mississippi",
+            },
         },
         {
-            "street": "71453 Bonner Avenue",
-            "locality": "San Antonio",
-            "postcode": "78225",
-            "region": "Texas",
+            "generator": None,
+            "unit_no": None,
+            "street": None,
+            "constant": {
+                "street": "71453 Bonner Avenue",
+                "locality": "San Antonio",
+                "postcode": "78225",
+                "region": "Texas",
+            },
         },
     ]
     residences = []
-    runs = [
-        lambda: range(1, 6),
-        lambda: td(1, 5, 0, 6, 0, 10),
-        lambda: range(2, 61, 2),
-        lambda: td(1, 4, 1, 4, 1, 4),
-    ]
     for c in communities:
-        if c.id < 5:
-            run = runs[c.id - 1]
-            for unit_no in run():
+        a = addresses[c.id - 1]
+        generator = a["generator"]
+        if generator:
+            for num in generator:
+                p = a["unit_no"]
                 res = DBResidence(
-                    community_id=c.id, unit_no=f"{unit_no}", **addresses[c.id - 1]
+                    community_id=c.id, unit_no=f"{p} {num}", **a["constant"]
                 )
                 residences.append(res)
                 db_session.add(res)
+
         else:
-            res = DBResidence(community_id=c.id, unit_no=None, **addresses[c.id - 1])
+            res = DBResidence(community_id=c.id, unit_no=None, **a["constant"])
             residences.append(res)
             db_session.add(res)
 
@@ -131,25 +180,26 @@ def seed_db(db_session):
     usernames_by_residence = [
         [
             {"family_name": "Wright", "personal_name": "Dylan"},
-            {"family_name": "Alexander", "personal_name": "Layla"},
+            {"family_name": "Wright", "personal_name": "Layla"},
+            {"family_name": "Wright", "personal_name": "David"},
         ],
         [
             {"family_name": "Boichat", "personal_name": "Göran"},
             {"family_name": "Bryant", "personal_name": "Katherine"},
-            {"family_name": "Campbell", "personal_name": "David"},
-            {"family_name": "Brown", "personal_name": "Zachary"},
-            {"family_name": "King", "personal_name": "David"},
             {"family_name": "Bryant", "personal_name": "Audrey"},
+            {"family_name": "Campbell", "personal_name": "David"},
             {"family_name": "Morris", "personal_name": "Gabriel"},
         ],
-        [{"family_name": "Smith", "personal_name": "Patrick"}],
+        [],
         [
             {"family_name": "Rodriguez", "personal_name": "Erin"},
             {"family_name": "Clark", "personal_name": "Julian"},
+            {"family_name": "Brown", "personal_name": "Zachary"},
         ],
         [{"family_name": "Long", "personal_name": "Charles"}],
         [
             {"family_name": "Olcot", "personal_name": "Fabe"},
+            {"family_name": "Smith", "personal_name": "Patrick"},
             {"family_name": "Nelson", "personal_name": "Nathan"},
         ],
         [
@@ -1941,6 +1991,8 @@ def seed_db(db_session):
         DBEmailContact(user_id=99, email="rhorsley2q@comsenz.com"),
         DBEmailContact(user_id=100, email="lmegroff2r@thetimes.co.uk"),
     ]
+    if not do_full_seed:
+        contact_methods = contact_methods[0:11]
 
     for cm in contact_methods:
         db_session.add(cm)
@@ -1983,4 +2035,4 @@ if __name__ == "__main__":
     engine = create_engine(os.environ["DATABASE_URL"])
     with Session(engine) as db_session:
         Base.metadata.create_all(bind=db_session.get_bind())
-        seed_db(db_session)
+        seed_db(db_session, True)
