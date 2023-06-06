@@ -97,6 +97,10 @@ nav#main-menu {
       content: url('/static/icons/household.svg');
     }
 
+    &[href="/billing/"]:before {
+      content: url('/static/icons/billing.svg');
+    }
+
     &[href="/resident-directory/"]:before {
       content: url('/static/icons/contacts.svg');
     }

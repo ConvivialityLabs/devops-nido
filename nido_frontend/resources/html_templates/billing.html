@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block title %}Billing{% endblock %}
+{% block body_id %}billing{% endblock %}
+{% block body %}
+<main>
+  <h1>{{self.title()}}</h1>
+  <h2>At A Glance</h2>
+  <p>You owe {{total_due}}.</p>
+  <h2>Actions</h2>
+  <ul>
+    <li><a href="#">Make a payment</a></li>
+    <li><a href="#">View billing history</a></li>
+  </ul>
+</main>
+{% endblock %}

@@ -28,6 +28,7 @@ class MenuLink:
 def get_main_menu():
     menu_list = []
     menu_list.append(MenuLink("My Household", url_for("household.index")))
+    menu_list.append(MenuLink("Billing", url_for("billing.index")))
     menu_list.append(MenuLink("Resident Directory", url_for("resident_dir.index")))
     menu_list.append(MenuLink("Logout", url_for("authentication.logout")))
     return menu_list
