@@ -62,6 +62,12 @@ def prepare_orm_query(info: Info, db_model_class: Any, gql_field: Any):
             db_column_loads.append(db_model_attr)
         elif isinstance(db_model_attr.property, Relationship):
             sub_opts = prepare_orm_query(info, db_model_attr.mapper.class_, field)
+            if field_filter := field.arguments.get("filter"):
+                if field_filter.get("outstandingOnly"):
+                    db_model_attr = db_model_attr.and_(
+                        db_model_attr.mapper.class_.remaining_balance > 0
+                    )
+
             db_relationship_loads.append(selectinload(db_model_attr).options(*sub_opts))
 
     if db_model_class.__name__ == "DBContactMethod":

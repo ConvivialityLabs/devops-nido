@@ -38,6 +38,11 @@ from .gql_helpers import encode_gql_id, prepare_orm_query
 from .gql_permissions import IsAuthenticated
 
 
+@strawberry.input
+class BillingChargeInputFilter:
+    outstanding_only: bool = False
+
+
 @strawberry.type
 class Community:
     db: strawberry.Private[DBCommunity]
@@ -55,7 +60,9 @@ class Community:
         return [Residence(db=r) for r in self.db.residences]
 
     @strawberry.field
-    def billing_charges(self, info: Info) -> Optional[List["BillingCharge"]]:
+    def billing_charges(
+        self, info: Info, filter: Optional[BillingChargeInputFilter] = None
+    ) -> Optional[List["BillingCharge"]]:
         au = info.context.active_user
         return [
             BillingCharge(db=bc)
@@ -118,7 +125,9 @@ class Residence:
         return [User(db=u) for u in self.db.occupants]
 
     @strawberry.field
-    def billing_charges(self, info: Info) -> Optional[List["BillingCharge"]]:
+    def billing_charges(
+        self, info: Info, filter: Optional[BillingChargeInputFilter] = None
+    ) -> Optional[List["BillingCharge"]]:
         au = info.context.active_user
         return [
             BillingCharge(db=bc)

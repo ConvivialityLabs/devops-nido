@@ -80,7 +80,11 @@ class DBCommunity(Base):
         back_populates="community", viewonly=True, init=False, repr=False
     )
     billing_charges: Mapped[List["DBBillingCharge"]] = relationship(
-        back_populates="community", viewonly=True, init=False, repr=False
+        order_by="DBBillingCharge.charge_date.desc()",
+        back_populates="community",
+        viewonly=True,
+        init=False,
+        repr=False,
     )
     billing_payments: Mapped[List["DBBillingPayment"]] = relationship(
         back_populates="community", viewonly=True, init=False, repr=False
@@ -124,6 +128,7 @@ class DBResidence(Base):
         repr=False,
     )
     billing_charges: Mapped[List["DBBillingCharge"]] = relationship(
+        order_by="DBBillingCharge.charge_date.desc()",
         back_populates="residence",
         init=False,
         repr=False,
@@ -178,7 +183,11 @@ class DBUser(Base):
         back_populates="user", viewonly=True, init=False, repr=False
     )
     billing_charges: Mapped[List["DBBillingCharge"]] = relationship(
-        back_populates="user", viewonly=True, init=False, repr=False
+        order_by="DBBillingCharge.charge_date.desc()",
+        back_populates="user",
+        viewonly=True,
+        init=False,
+        repr=False,
     )
     contact_methods: Mapped[List["DBContactMethod"]] = relationship(
         back_populates="user", init=False, repr=False
