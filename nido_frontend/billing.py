@@ -14,12 +14,18 @@
 #  You should have received a copy of the GNU Affero General Public License
 #  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+from decimal import Decimal
 from functools import reduce
 
 from flask import Blueprint, g, render_template
 
 from .authentication import login_required
 from .main_menu import get_main_menu
+
+
+def format_money(amount: int) -> str:
+    return f"${Decimal('.01') * amount}"
+
 
 bp = Blueprint("billing", __name__)
 
@@ -50,5 +56,7 @@ query Billing {
     )
     main_menu_links = get_main_menu()
     return render_template(
-        "billing.html", main_menu_links=main_menu_links, total_due=total_due
+        "billing.html",
+        main_menu_links=main_menu_links,
+        total_due=format_money(total_due),
     )
