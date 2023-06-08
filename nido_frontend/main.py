@@ -25,6 +25,7 @@ from sqlalchemy.orm import scoped_session, sessionmaker
 from strawberry import Schema
 from strawberry.flask.views import GraphQLView
 
+from nido_backend.gql_query import Issue
 from nido_backend.gql_schema import SchemaContext, create_schema
 
 from .authentication import bp as auth_bp
@@ -35,6 +36,8 @@ from .household import bp as household_bp
 from .household import index as household_index
 from .resident_directory import bp as rd_bp
 
+dev_issue_list = []
+
 
 class GraphQLWithDB(GraphQLView):
     def get_context(self, request: Request, response: Response) -> Any:
@@ -42,7 +45,7 @@ class GraphQLWithDB(GraphQLView):
         community_id = session.get("community_id")
         db_session = g.db_session
 
-        return SchemaContext(db_session, user_id, community_id)
+        return SchemaContext(dev_issue_list, db_session, user_id, community_id)
 
 
 class GraphQLDataDict(dict):
@@ -69,7 +72,7 @@ class IntegratedGraphQLClient:
         community_id = session.get("community_id")
         db_session = g.db_session
 
-        context = SchemaContext(db_session, user_id, community_id)
+        context = SchemaContext(dev_issue_list, db_session, user_id, community_id)
         result = self.gql_schema.execute_sync(query, variable_values, context)
         result.data = GraphQLDataDict(result.data)
         return result

@@ -15,7 +15,7 @@
 #  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 from dataclasses import dataclass
-from typing import Optional, Type
+from typing import List, Optional, Type
 
 from sqlalchemy.orm import Session
 from strawberry import Schema
@@ -24,11 +24,15 @@ from strawberry.extensions import SchemaExtension
 from .db_models import DBCommunity, DBUser
 from .gql_errors import AlreadyTaken, DatabaseError, NotFound, Unauthorized
 from .gql_mutation import Mutation
-from .gql_query import EmailContact, Query
+from .gql_query import EmailContact, Issue, Query
 
 
 @dataclass
 class SchemaContext:
+    # TODO dev_issue_list is just a development mockup to try out different
+    # Issue designs. A production implementation should come from db or an
+    # external service.
+    dev_issue_list: List[Issue]
     db_session: Session
     user_id: Optional[int] = None
     community_id: Optional[int] = None

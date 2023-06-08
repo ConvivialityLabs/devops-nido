@@ -135,6 +135,19 @@ class Residence:
             if oso.is_allowed(au, "query", bc)
         ]
 
+    @strawberry.field
+    def issues(self, info: Info) -> Optional[List["Issue"]]:
+        return info.context.dev_issue_list
+
+
+# TODO This is just a development mockup to try out different Issue designs.
+# A production implementation should come from db or an external service.
+@strawberry.type
+class Issue:
+    is_open: bool
+    description: str
+    status_msg: Optional[str] = None
+
 
 @strawberry.type
 class User:

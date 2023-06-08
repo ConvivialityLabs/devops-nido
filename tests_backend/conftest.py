@@ -17,7 +17,7 @@ class TestSchema(Schema):
     def execute_sync(
         self, query, variable_values=None, context_value={}, *args, **kwargs
     ):
-        context = SchemaContext(self.db_session, **context_value)
+        context = SchemaContext([], self.db_session, **context_value)
         return super().execute_sync(query, variable_values, context, *args, **kwargs)
 
 
