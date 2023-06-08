@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}Report Issues{% endblock %}
+{% block body_id %}report-issues{% endblock %}
+{% block body %}
+<main>
+  <h1>{{self.title()}}</h1>
+  <h2>Issue Status</h2>
+  <h3>Open Issues</h3>
+  <ul>
+    {% for issue in open_issues %}
+    <li>
+      <p>{{issue.description}}</p>
+      <dl>
+        <dt>Current status: </dt>
+        <dd>{{issue.status_msg or "Awaiting response"}}</dd>
+      </dl>
+    </li>
+    {% endfor %}
+  </ul>
+  <h3>Recently Closed Issues</h3>
+  <ul>
+    {% for issue in closed_issues %}
+    <li>
+      <p>{{issue.description}}</p>
+      <dl>
+        <dt>Current status: </dt>
+        <dd>{{issue.status_msg or "Awaiting response"}}</dd>
+      </dl>
+    </li>
+    {% endfor %}
+  </ul>
+  <h2>Actions</h2>
+  <ul>
+    <li><a href="#">Report new issue</a></li>
+  </ul>
+</main>
+{% endblock %}

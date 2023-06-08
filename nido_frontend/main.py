@@ -34,9 +34,25 @@ from .billing import bp as billing_bp
 from .documents import bp as documents_bp
 from .household import bp as household_bp
 from .household import index as household_index
+from .report_issues import bp as issues_bp
 from .resident_directory import bp as rd_bp
 
-dev_issue_list = []
+dev_issue_list = [
+    Issue(
+        is_open=True,
+        description="Construction in the parking lot is scheduled for next month.",
+    ),
+    Issue(
+        is_open=True,
+        description="The light is out in the first floor hallway.",
+        status_msg="An electrician is scheduled to come out on Monday.",
+    ),
+    Issue(
+        is_open=False,
+        description="The front gate does not always latch.",
+        status_msg="Eric has repaired it on 3/28.",
+    ),
+]
 
 
 class GraphQLWithDB(GraphQLView):
@@ -150,6 +166,7 @@ def create_app(testing_config=None):
     app.register_blueprint(billing_bp, url_prefix="/billing")
     app.register_blueprint(documents_bp, url_prefix="/documents")
     app.register_blueprint(household_bp, url_prefix="/my-household")
+    app.register_blueprint(issues_bp, url_prefix="/report-issues")
     app.register_blueprint(rd_bp, url_prefix="/resident-directory")
     app.add_url_rule("/", endpoint="index", view_func=household_index)
 
