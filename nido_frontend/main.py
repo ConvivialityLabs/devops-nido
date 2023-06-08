@@ -16,9 +16,10 @@
 
 import dataclasses
 import os
+import secrets
 from typing import Any
 
-from flask import Flask, Request, Response, g, render_template, session
+from flask import Flask, Request, Response, current_app, g, render_template, session
 from sqlalchemy import Engine, create_engine
 from sqlalchemy.orm import scoped_session, sessionmaker
 from strawberry import Schema
@@ -82,12 +83,22 @@ def create_app(testing_config=None):
         template_folder="resources/html_templates",
         static_folder="resources/static",
     )
+    if app.debug:
+        os.makedirs(app.instance_path, exist_ok=True)
 
     if testing_config:
         app.config.from_mapping(testing_config)
     else:
         conf_file = os.environ.get("NIDO_CONFIG_FILE") or "nido.cfg"
-        app.config.from_pyfile(conf_file)
+        try:
+            app.config.from_pyfile(conf_file)
+        except:
+            if not app.debug:
+                raise
+            key = secrets.token_hex()
+            app.config["SECRET_KEY"] = key
+            with app.open_instance_resource(conf_file, mode="a") as fp:
+                fp.write(f'SECRET_KEY="{key}"\n')
 
     try:
         from sassutils.wsgi import SassMiddleware  # type: ignore
@@ -107,20 +118,23 @@ def create_app(testing_config=None):
         )
 
     db_engine = create_engine(
-        app.config["DATABASE_URL"],
+        app.config.get(
+            "DATABASE_URL",
+            "sqlite:///" + os.path.join(app.instance_path, "nido_db.sqlite3"),
+        ),
         echo=app.config.get("LOG_SQL", app.debug),
     )
     # XXX: Is a scoped session really necessary?
     # See https://docs.sqlalchemy.org/en/20/orm/contextual.html
-    Session = scoped_session(sessionmaker(bind=db_engine))
+    app.Session = scoped_session(sessionmaker(bind=db_engine))
 
     @app.before_request
     def create_db_session():
-        g.db_session = Session()
+        g.db_session = current_app.Session()
 
     @app.teardown_appcontext
     def end_db_session(_response):
-        Session.remove()
+        current_app.Session.remove()
 
     gql_schema = create_schema()
     gql_client = IntegratedGraphQLClient(gql_schema)

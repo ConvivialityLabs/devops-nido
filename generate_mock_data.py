@@ -2052,14 +2052,9 @@ def seed_db(db_session, do_full_seed=False):
 
 
 if __name__ == "__main__":
-    import os
-
-    from sqlalchemy import create_engine
-    from sqlalchemy.orm import Session
-
     from nido_backend.db_models import Base
+    from nido_frontend import create_app
 
-    engine = create_engine(os.environ["DATABASE_URL"])
-    with Session(engine) as db_session:
-        Base.metadata.create_all(bind=db_session.get_bind())
-        seed_db(db_session, True)
+    db_session = create_app().Session()
+    Base.metadata.create_all(bind=db_session.get_bind())
+    seed_db(db_session, True)
