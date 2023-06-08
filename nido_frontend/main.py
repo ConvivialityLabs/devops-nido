@@ -29,6 +29,7 @@ from nido_backend.gql_schema import SchemaContext, create_schema
 from .authentication import bp as auth_bp
 from .authentication import login_required
 from .billing import bp as billing_bp
+from .documents import bp as documents_bp
 from .household import bp as household_bp
 from .household import index as household_index
 from .resident_directory import bp as rd_bp
@@ -130,6 +131,7 @@ def create_app(testing_config=None):
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(billing_bp, url_prefix="/billing")
+    app.register_blueprint(documents_bp, url_prefix="/documents")
     app.register_blueprint(household_bp, url_prefix="/my-household")
     app.register_blueprint(rd_bp, url_prefix="/resident-directory")
     app.add_url_rule("/", endpoint="index", view_func=household_index)

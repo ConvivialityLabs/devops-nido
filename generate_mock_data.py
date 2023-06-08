@@ -9,6 +9,7 @@ from nido_backend.db_models import (
     DBBillingPayment,
     DBBillingTransaction,
     DBCommunity,
+    DBDirFile,
     DBDirFolder,
     DBEmailContact,
     DBGroup,
@@ -2018,7 +2019,33 @@ def seed_db(db_session, do_full_seed=False):
         db_session.add(top_right)
         db_session.add(president)
 
-        root_folder = DBDirFolder(community_id=c.id, name="<root>")
+        root_folder = DBDirFolder(community_id=c.id, name=f"{c.name} Documents")
+        child_folder = DBDirFolder(community_id=c.id, name="Nested Folder")
+        child_folder2 = DBDirFolder(community_id=c.id, name="Another Nested Folder")
+        grandchild_folder = DBDirFolder(community_id=c.id, name="Deeply Nested Folder")
+        child_folder.parent_folder = root_folder
+        child_folder2.parent_folder = root_folder
+        grandchild_folder.parent_folder = child_folder
+        link_file = DBDirFile(
+            community_id=c.id,
+            name="Example Link File",
+            parent_folder=root_folder,
+            url="https://example.com",
+        )
+        pdf_file = DBDirFile(
+            community_id=c.id,
+            name="Example PDF Document",
+            parent_folder=root_folder,
+            data=(
+                b"%PDF-1.2 \n"
+                b"9 0 obj\n<<\n>>\nstream\nBT/ 32 Tf(Example Document)' ET\nendstream\nendobj\n"
+                b"4 0 obj\n<<\n/Type /Page\n/Parent 5 0 R\n/Contents 9 0 R\n>>\nendobj\n"
+                b"5 0 obj\n<<\n/Kids [4 0 R ]\n/Count 1\n/Type /Pages\n/MediaBox [0 0 595 792]\n>>\nendobj\n"
+                b"3 0 obj\n<<\n/Pages 5 0 R\n/Type /Catalog\n>>\nendobj\n"
+                b"trailer\n<<\n/Root 3 0 R\n>>\n"
+                b"%%EOF"
+            ),
+        )
         db_session.add(root_folder)
 
         db_session.commit()

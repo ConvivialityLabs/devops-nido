@@ -420,6 +420,9 @@ class DBDirFolder(Base):
             ondelete="CASCADE",
         ),
         sql_schema.UniqueConstraint("parent_folder_id", "name"),
+        # Prevent names from containing an underscore, so space characters can
+        # be escaped in urls.
+        sql_schema.CheckConstraint("name NOT LIKE '%\\_%' ESCAPE '\\'"),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True, init=False, repr=False)
@@ -442,6 +445,11 @@ class DBDirFolder(Base):
         init=False,
         repr=False,
     )
+    files: Mapped[List["DBDirFile"]] = relationship(
+        back_populates="parent_folder",
+        init=False,
+        repr=False,
+    )
     reader_groups: Mapped[List[DBGroup]] = relationship(
         secondary="directory_folder_group_permissions",
         init=False,
@@ -459,6 +467,9 @@ class DBDirFile(Base):
             ondelete="CASCADE",
         ),
         sql_schema.UniqueConstraint("folder_id", "name"),
+        # Prevent names from containing an underscore, so space characters can
+        # be escaped in urls.
+        sql_schema.CheckConstraint("name NOT LIKE '%\\_%' ESCAPE '\\'"),
         sql_schema.CheckConstraint(
             "(url IS NULL AND data IS NOT NULL) OR "
             "(data IS NULL AND url IS NOT NULL)"
@@ -469,15 +480,16 @@ class DBDirFile(Base):
     community_id: Mapped[int] = mapped_column(
         ForeignKey("community.id", ondelete="CASCADE")
     )
-    folder_id: Mapped[int]
+    folder_id: Mapped[int] = mapped_column(init=False)
 
     name: Mapped[str]
-    url: Mapped[Optional[str]]
-    data: Mapped[Optional[bytes]]
+    url: Mapped[Optional[str]] = mapped_column(default=None)
+    data: Mapped[Optional[bytes]] = mapped_column(default=None)
 
     community: Mapped[DBCommunity] = relationship(viewonly=True, init=False, repr=False)
     parent_folder: Mapped[DBDirFolder] = relationship(
-        init=False,
+        back_populates="files",
+        kw_only=True,
         repr=False,
     )
     reader_groups: Mapped[List[DBGroup]] = relationship(

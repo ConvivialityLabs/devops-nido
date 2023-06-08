@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block title %}{{folder.name}}{% endblock %}
+{% block body_id %}documents{% endblock %}
+{% block body %}
+<main>
+  <h1>{{self.title()}}</h1>
+  {% if folder.subfolders %}
+    <h2>Folders</h2>
+    <ul>
+      {% for subfolder in folder.subfolders %}
+        <li>
+          <a href="
+            {{-
+              url_for(
+                ".index",
+                folder_path = (
+                  folder_path + '/' + subfolder.name
+                  if folder_path
+                  else subfolder.name
+                ).replace(" ", "_")
+              )
+            -}}
+          ">
+            {{- subfolder.name -}}
+          </a>
+        </li>
+      {% endfor %}
+    </ul>
+  {% endif %}
+  {% if folder.files %}
+    <h2>Files</h2>
+    <ul>
+      {% for file in folder.files %}
+      <li>
+        <a href="
+          {{-
+            file.url or
+            url_for(
+              ".index",
+              folder_path=folder_path,
+              file_name=file.name.replace(" ", "_"),
+            )
+          -}}
+        ">
+          {{- file.name -}}
+        </a>
+      </li>
+      {% endfor %}
+    </ul>
+  {% endif %}
+  {% if not folder.files and not folder.subfolders %}
+    <p>This folder is empty!</p>
+  {% endif %}
+</main>
+{% endblock %}

@@ -4,6 +4,8 @@ from sqlalchemy.exc import IntegrityError
 
 from nido_backend.db_models import (
     DBCommunity,
+    DBDirFile,
+    DBDirFolder,
     DBEmailContact,
     DBGroup,
     DBGroupMembership,
@@ -88,3 +90,10 @@ def test_right_permits_hybrid_method_on_class(db_session):
         .where(DBRight.permits(some_permissions.value))
     )
     assert right_count > 0
+
+
+def test_directory_folder_name_cannot_contain_underscore(db_session):
+    invalid = DBDirFolder(name="invalid_name", community_id=1)
+    db_session.add(invalid)
+    with pytest.raises(IntegrityError):
+        db_session.commit()

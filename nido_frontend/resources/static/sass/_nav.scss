@@ -105,6 +105,10 @@ nav#main-menu {
       content: url('/static/icons/contacts.svg');
     }
 
+    &[href="/documents/"]:before {
+      content: url('/static/icons/docs.svg');
+    }
+
     &[href="/logout"]:before {
       content: url('/static/icons/logout.svg');
     }
