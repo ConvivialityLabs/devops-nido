@@ -16,7 +16,7 @@
 
 from functools import reduce
 
-from flask import Blueprint, g, render_template
+from flask import Blueprint, g, redirect, render_template, request, url_for
 
 from .authentication import login_required
 from .main_menu import get_main_menu
@@ -55,4 +55,28 @@ query Issues {
         main_menu_links=main_menu_links,
         open_issues=open_issues,
         closed_issues=closed_issues,
+    )
+
+
+@bp.route("/new-issue", methods=["GET", "POST"])
+@login_required
+def new_issue():
+    gql_query = """
+mutation NewIssue($description: String!) {
+  issues {
+    new(input: {description: $description}) {
+      errors {
+        message
+      }
+    }
+  }
+}"""
+    if request.method == "POST":
+        gql_vars = {"description": request.form["issue_description"]}
+        gql_result = g.gql_client.execute_query(gql_query, gql_vars)
+        return redirect(url_for(".index"))
+    main_menu_links = get_main_menu()
+    return render_template(
+        "new-issue.html",
+        main_menu_links=main_menu_links,
     )
