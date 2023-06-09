@@ -13,17 +13,17 @@
         <th>Email</th>
       </tr>
     </thead>
-    {% for listing in community.residences %}
+    {%- for listing in community.residences %}
       <tr>
         <td rowspan="{{listing.occupants|count or 1}}">
-          {% if show_street %}
-            {{listing.street}}<br/>
-          {% endif %}
-          {% if listing.unit_no %}
-          {{listing.unit_no}}
-          {% endif %}
+          {%- if show_street %}
+            {{-listing.street}}<br/>
+          {%- endif %}
+          {%- if listing.unit_no %}
+            {{-listing.unit_no}}
+          {%- endif -%}
         </td>
-        {% if listing.occupants %}
+        {%- if listing.occupants -%}
           {% for resident in listing.occupants %}
             <td>{{resident.full_name}}</td>
             <td><!--phone--></td>
@@ -32,14 +32,14 @@
                 {{-email.email}}<br/>
               {%- endfor -%}
             </td>
-            {% if not loop.last %}
-              </tr>
-              <tr>
-            {% endif %}
-          {% endfor %}
+            {%- if not loop.last %}
+      </tr>
+      <tr>
+            {%- endif %}
+          {%- endfor %}
         {% else %}
           <td colspan="3">Vacant</td>
-        {% endif %}
+        {%- endif %}
       </tr>
     {% endfor %}
   </table>
