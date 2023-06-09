@@ -28,9 +28,9 @@
             <td>{{resident.full_name}}</td>
             <td><!--phone--></td>
             <td>
-              {% for email in resident.emails %}
-                {{email.email}},
-              {% endfor %}
+              {%- for email in resident.emails -%}
+                {{-email.email}}<br/>
+              {%- endfor -%}
             </td>
             {% if not loop.last %}
               </tr>
