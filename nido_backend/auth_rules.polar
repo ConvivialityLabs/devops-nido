@@ -51,6 +51,10 @@ resource ContactMethod {
     "delete" if "owner";
 }
 
+# TODO Remove this rule when proper logic for "public" contact methods
+# is implemented.
+has_permission(_: User, "query", _: ContactMethod);
+
 has_relation(user: User, "owner", contact_method: ContactMethod) if
     contact_method.user_id = user.id;
 
