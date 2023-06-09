@@ -9,6 +9,7 @@
       <tr>
         <th>Unit</th>
         <th>Name</th>
+        <th>Groups</th>
         <th>Phone</th>
         <th>Email</th>
       </tr>
@@ -26,6 +27,11 @@
         {%- if listing.occupants -%}
           {% for resident in listing.occupants %}
             <td>{{resident.full_name}}</td>
+            <td>
+              {%- for group in resident.groups -%}
+                {{- group.name }}<br/>
+              {%- endfor -%}
+            </td>
             <td><!--phone--></td>
             <td>
               {%- for email in resident.emails -%}
@@ -38,7 +44,7 @@
             {%- endif %}
           {%- endfor %}
         {% else %}
-          <td colspan="3">Vacant</td>
+          <td colspan="4">Vacant</td>
         {%- endif %}
       </tr>
     {% endfor %}

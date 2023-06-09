@@ -184,6 +184,14 @@ class User:
             return [Residence(db=r) for r in self.db.residences]
 
     @strawberry.field
+    def groups(self, info: Info) -> Optional[List["Group"]]:
+        ac = info.context.active_community
+        if ac:
+            return [Group(db=g) for g in self.db.groups if g.community_id == ac.id]
+        else:
+            return [Group(db=g) for g in self.db.groups]
+
+    @strawberry.field
     def contact_methods(self, info: Info) -> List["ContactMethod"]:
         au = info.context.active_user
         if au:

@@ -50,6 +50,9 @@ query ResidentDir {
       unitNo
       occupants {
         fullName
+        groups {
+          name
+        }
         emails: contactMethods {
           ... on EmailContact {
             email
