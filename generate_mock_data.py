@@ -2019,32 +2019,52 @@ def seed_db(db_session, do_full_seed=False):
         db_session.add(top_right)
         db_session.add(president)
 
+        example_pdf = (
+            b"%PDF-1.2 \n"
+            b"9 0 obj\n<<\n>>\nstream\nBT/ 32 Tf(Example Document)' ET\nendstream\nendobj\n"
+            b"4 0 obj\n<<\n/Type /Page\n/Parent 5 0 R\n/Contents 9 0 R\n>>\nendobj\n"
+            b"5 0 obj\n<<\n/Kids [4 0 R ]\n/Count 1\n/Type /Pages\n/MediaBox [0 0 595 792]\n>>\nendobj\n"
+            b"3 0 obj\n<<\n/Pages 5 0 R\n/Type /Catalog\n>>\nendobj\n"
+            b"trailer\n<<\n/Root 3 0 R\n>>\n"
+            b"%%EOF"
+        )
+        current_year = datetime.datetime.now().year
         root_folder = DBDirFolder(community_id=c.id, name=f"{c.name} Documents")
-        child_folder = DBDirFolder(community_id=c.id, name="Nested Folder")
-        child_folder2 = DBDirFolder(community_id=c.id, name="Another Nested Folder")
-        grandchild_folder = DBDirFolder(community_id=c.id, name="Deeply Nested Folder")
-        child_folder.parent_folder = root_folder
-        child_folder2.parent_folder = root_folder
-        grandchild_folder.parent_folder = child_folder
+        budget_folder = DBDirFolder(community_id=c.id, name="Budgets")
+        budget_folder.parent_folder = root_folder
+        for year in range(current_year, current_year - 11, -1):
+            budget_file = DBDirFile(
+                community_id=c.id,
+                name=f"{year} Budget",
+                parent_folder=budget_folder,
+                data=example_pdf,
+            )
+            db_session.add(budget_file)
+        minutes_folder = DBDirFolder(community_id=c.id, name="Meeting Minutes")
+        minutes_folder.parent_folder = root_folder
+        for year in range(current_year, current_year - 11, -1):
+            yearly_minutes_folder = DBDirFolder(
+                community_id=c.id, name=f"{year} Minutes"
+            )
+            yearly_minutes_folder.parent_folder = minutes_folder
+            db_session.add(yearly_minutes_folder)
+        bylaws = DBDirFile(
+            community_id=c.id,
+            name=f"{c.name} Bylaws",
+            parent_folder=root_folder,
+            data=example_pdf,
+        )
+        rulebook = DBDirFile(
+            community_id=c.id,
+            name=f"{c.name} {current_year} Rulebook",
+            parent_folder=root_folder,
+            data=example_pdf,
+        )
         link_file = DBDirFile(
             community_id=c.id,
-            name="Example Link File",
+            name="Example Link To A File Hosted Elsewhere",
             parent_folder=root_folder,
             url="https://example.com",
-        )
-        pdf_file = DBDirFile(
-            community_id=c.id,
-            name="Example PDF Document",
-            parent_folder=root_folder,
-            data=(
-                b"%PDF-1.2 \n"
-                b"9 0 obj\n<<\n>>\nstream\nBT/ 32 Tf(Example Document)' ET\nendstream\nendobj\n"
-                b"4 0 obj\n<<\n/Type /Page\n/Parent 5 0 R\n/Contents 9 0 R\n>>\nendobj\n"
-                b"5 0 obj\n<<\n/Kids [4 0 R ]\n/Count 1\n/Type /Pages\n/MediaBox [0 0 595 792]\n>>\nendobj\n"
-                b"3 0 obj\n<<\n/Pages 5 0 R\n/Type /Catalog\n>>\nendobj\n"
-                b"trailer\n<<\n/Root 3 0 R\n>>\n"
-                b"%%EOF"
-            ),
         )
         db_session.add(root_folder)
 
