@@ -18,6 +18,8 @@ import datetime
 from typing import List, Optional
 
 import strawberry
+from sqlalchemy import func as sql_func
+from sqlalchemy import select
 from strawberry.types import Info
 from strawberry.types.nodes import SelectedField
 
@@ -29,6 +31,7 @@ from .db_models import (
     DBContactMethod,
     DBEmailContact,
     DBGroup,
+    DBGroupMembership,
     DBResidence,
     DBRight,
     DBUser,
@@ -202,6 +205,25 @@ class User:
             ]
         else:
             return []
+
+    @strawberry.field
+    def is_admin(self, info: Info) -> bool:
+        stmt = (
+            select(DBGroupMembership.community_id, sql_func.count(DBRight.id))
+            .select_from(DBGroupMembership)
+            .join(DBGroup, DBGroupMembership.group_id == DBGroup.id)
+            .join(DBRight, DBGroup.right_id == DBRight.id)
+            .where(DBGroupMembership.user_id == self.db.id)
+            .group_by(DBGroupMembership.community_id)
+        )
+        result = info.context.db_session.execute(stmt)
+        # TODO: The conditional below gives the right answer the majority of
+        # the time but is wrong in principle; it ought to compare against a
+        # particular community_id
+        for res in result:
+            if res[1] > 0:
+                return True
+        return False
 
 
 @strawberry.type
