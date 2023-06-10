@@ -64,9 +64,9 @@ class ContactMethodMutations:
         email_contacts: List[EmailContact] = []
         errors: List[Error] = []
 
-        user_id = info.context.user_id
+        au = info.context.active_user
         for i in input:
-            new_contact = DBEmailContact(user_id=user_id, email=i.email)
+            new_contact = DBEmailContact(user=au, email=i.email)
             info.context.db_session.add(new_contact)
             try:
                 info.context.db_session.commit()

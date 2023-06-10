@@ -389,11 +389,13 @@ class DBContactMethod(Base):
     __tablename__ = "contact_method"
 
     id: Mapped[int] = mapped_column(primary_key=True, init=False, repr=False)
-    user_id: Mapped[int] = mapped_column(ForeignKey("user.id", ondelete="CASCADE"))
+    user_id: Mapped[int] = mapped_column(
+        ForeignKey("user.id", ondelete="CASCADE"), init=False
+    )
     type: Mapped[ContactMethodType] = mapped_column(init=False, repr=False)
 
     user: Mapped[DBUser] = relationship(
-        back_populates="contact_methods", init=False, repr=False
+        back_populates="contact_methods", kw_only=True, repr=False
     )
 
     __mapper_args__ = {

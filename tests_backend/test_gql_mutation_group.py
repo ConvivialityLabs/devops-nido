@@ -57,7 +57,7 @@ mutation MyMutation($input: [AddMembersGroupInput!] = {group: "", members: ""}) 
 
 def test_gql_mutation_add_members_group_success(test_schema, db_session):
     old_count = db_session.scalar(select(func.count()).select_from(DBGroupMembership))
-    var_dir = {"input": {"group": "Z3JvdXA6Mg==", "members": "dXNlcjoxMg=="}}
+    var_dir = {"input": {"group": "Z3JvdXA6Mg==", "members": "dXNlcjo4"}}
     context = {"user_id": 1, "community_id": 1}
     test_schema.execute_sync(test_add_members_query, var_dir, context)
     new_count = db_session.scalar(select(func.count()).select_from(DBGroupMembership))

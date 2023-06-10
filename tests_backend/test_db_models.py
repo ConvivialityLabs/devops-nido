@@ -24,14 +24,15 @@ def test_residence_occupany_foreign_key(db_session):
 
 def test_unique_email_constraint(db_session):
     original = db_session.get(DBEmailContact, 1)
-    dup_email = DBEmailContact(user_id=original.user_id + 1, email=original.email)
+    dup_email = DBEmailContact(user=original.user, email=original.email)
     db_session.add(dup_email)
     with pytest.raises(IntegrityError):
         db_session.commit()
 
 
 def test_contact_method_user_foreign_key(db_session):
-    email = DBEmailContact(user_id=1000000, email="testunique@example.com")
+    email = DBEmailContact(user=None, email="testunique@example.com")
+    email.user_id = 0xDEADBEEF
     db_session.add(email)
     with pytest.raises(IntegrityError):
         db_session.commit()
