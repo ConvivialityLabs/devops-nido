@@ -1,4 +1,4 @@
-#  Nido household.py
+#  Nido admin_dashboard.py
 #  Copyright (C) John Arnold
 #
 #  This program is free software: you can redistribute it and/or modify
@@ -14,50 +14,26 @@
 #  You should have received a copy of the GNU Affero General Public License
 #  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-from flask import (
-    Blueprint,
-    abort,
-    current_app,
-    g,
-    redirect,
-    render_template,
-    request,
-    session,
-    url_for,
-)
-from sqlalchemy import select
-
-from nido_backend.db_models import DBResidence, DBResidenceOccupancy
+from flask import Blueprint, abort, g, render_template
 
 from .authentication import login_required
-from .main_menu import get_main_menu
+from .main_menu import get_admin_menu
 
-bp = Blueprint("household", __name__)
+bp = Blueprint("admin_dashboard", __name__)
 
 
 @bp.route("/")
 @login_required
 def index():
     gql_query = """
-query MyHousehold {
+query AdminDash {
   activeUser {
     isAdmin
-    residences {
-      unitNo
-      street
-      locality
-      region
-      postcode
-      occupants {
-        fullName
-      }
-    }
   }
 }"""
 
     gql_result = g.gql_client.execute_query(gql_query)
-    residences = gql_result.data.active_user.residences
-    main_menu_links = get_main_menu(gql_result.data.active_user.is_admin)
-    return render_template(
-        "household.html", main_menu_links=main_menu_links, residences=residences
-    )
+    if not gql_result.data.active_user.is_admin:
+        abort(403)
+    main_menu_links = get_admin_menu()
+    return render_template("admin-dash.html", main_menu_links=main_menu_links)

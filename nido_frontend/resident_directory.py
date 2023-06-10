@@ -40,6 +40,9 @@ bp = Blueprint("resident_dir", __name__)
 def index():
     gql_query = """
 query ResidentDir {
+  activeUser {
+    isAdmin
+  }
   activeCommunity {
     name
     residences {
@@ -64,7 +67,7 @@ query ResidentDir {
 }"""
     gql_result = g.gql_client.execute_query(gql_query)
     community = gql_result.data.active_community
-    main_menu_links = get_main_menu()
+    main_menu_links = get_main_menu(gql_result.data.active_user.is_admin)
     return render_template(
         "resident-dir.html",
         main_menu_links=main_menu_links,

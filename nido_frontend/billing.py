@@ -36,6 +36,7 @@ def index():
     gql_query = """
 query Billing {
   activeUser {
+    isAdmin
     residences {
       billingCharges(filter: {outstandingOnly: true}) {
         remainingBalance
@@ -54,7 +55,7 @@ query Billing {
         ],
         0,
     )
-    main_menu_links = get_main_menu()
+    main_menu_links = get_main_menu(gql_result.data.active_user.is_admin)
     return render_template(
         "billing.html",
         main_menu_links=main_menu_links,

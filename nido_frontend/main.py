@@ -28,6 +28,7 @@ from strawberry.flask.views import GraphQLView
 from nido_backend.gql_query import Issue
 from nido_backend.gql_schema import SchemaContext, create_schema
 
+from .admin_blueprint import bp as admin_bp
 from .authentication import bp as auth_bp
 from .authentication import login_required
 from .billing import bp as billing_bp
@@ -161,6 +162,8 @@ def create_app(testing_config=None):
     @app.before_request
     def create_gql_client():
         g.gql_client = gql_client
+
+    app.register_blueprint(admin_bp, url_prefix="/admin")
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(billing_bp, url_prefix="/billing")

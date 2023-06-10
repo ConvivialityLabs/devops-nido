@@ -113,6 +113,18 @@ nav#main-menu {
       content: url('/static/icons/docs.svg');
     }
 
+    &[href="/admin/"]:before {
+      content: url('/static/icons/admin.svg');
+    }
+
+    &[href="/admin/dashboard/"]:before {
+      content: url('/static/icons/dashboard.svg');
+    }
+
+    &[href="/"]:before {
+      content: url('/static/icons/user.svg');
+    }
+
     &[href="/logout"]:before {
       content: url('/static/icons/logout.svg');
     }

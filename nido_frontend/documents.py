@@ -41,7 +41,14 @@ def find_subfolder(name: str, folder: DBDirFolder) -> Optional[DBDirFolder]:
 @bp.route("/<path:folder_path>/<file_name>")
 @login_required
 def index(folder_path=None, file_name=None):
+    gql_query = """
+query Documents {
+  activeUser {
+    isAdmin
+  }
+}"""
     community_id = session.get("community_id")
+    gql_result = g.gql_client.execute_query(gql_query)
     stmt = select(DBDirFolder).where(
         DBDirFolder.community_id == community_id, DBDirFolder.parent_folder_id == None
     )
@@ -54,7 +61,7 @@ def index(folder_path=None, file_name=None):
             else:
                 abort(404)
     if file_name is None:
-        main_menu_links = get_main_menu()
+        main_menu_links = get_main_menu(gql_result.data.active_user.is_admin)
         return render_template(
             "documents.html",
             main_menu_links=main_menu_links,

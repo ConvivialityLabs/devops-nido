@@ -30,6 +30,7 @@ def index():
     gql_query = """
 query Issues {
   activeUser {
+    isAdmin
     residences {
       issues {
         statusMsg
@@ -49,7 +50,7 @@ query Issues {
                 open_issues.append(issue)
             else:
                 closed_issues.append(issue)
-    main_menu_links = get_main_menu()
+    main_menu_links = get_main_menu(gql_result.data.active_user.is_admin)
     return render_template(
         "report-issues.html",
         main_menu_links=main_menu_links,
@@ -62,6 +63,12 @@ query Issues {
 @login_required
 def new_issue():
     gql_query = """
+query NewIssue {
+  activeUser {
+    isAdmin
+  }
+}"""
+    gql_mutation = """
 mutation NewIssue($description: String!) {
   issues {
     new(input: {description: $description}) {
@@ -73,9 +80,10 @@ mutation NewIssue($description: String!) {
 }"""
     if request.method == "POST":
         gql_vars = {"description": request.form["issue_description"]}
-        gql_result = g.gql_client.execute_query(gql_query, gql_vars)
+        gql_result = g.gql_client.execute_query(gql_mutation, gql_vars)
         return redirect(url_for(".index"))
-    main_menu_links = get_main_menu()
+    gql_result = g.gql_client.execute_query(gql_query)
+    main_menu_links = get_main_menu(gql_result.data.active_user.is_admin)
     return render_template(
         "new-issue.html",
         main_menu_links=main_menu_links,

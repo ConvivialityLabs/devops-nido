@@ -25,12 +25,22 @@ class MenuLink:
     href: str
 
 
-def get_main_menu():
+def get_main_menu(is_admin: bool):
     menu_list = []
     menu_list.append(MenuLink("My Household", url_for("household.index")))
     menu_list.append(MenuLink("Billing", url_for("billing.index")))
     menu_list.append(MenuLink("Report Issues", url_for("report_issues.index")))
     menu_list.append(MenuLink("Resident Directory", url_for("resident_dir.index")))
     menu_list.append(MenuLink("Documents", url_for("documents.index")))
+    if is_admin:
+        menu_list.append(MenuLink("Administrative View", url_for("admin.index")))
+    menu_list.append(MenuLink("Logout", url_for("authentication.logout")))
+    return menu_list
+
+
+def get_admin_menu():
+    menu_list = []
+    menu_list.append(MenuLink("Dashboard", url_for("admin.admin_dashboard.index")))
+    menu_list.append(MenuLink("User View", url_for("index")))
     menu_list.append(MenuLink("Logout", url_for("authentication.logout")))
     return menu_list
