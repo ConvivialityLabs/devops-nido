@@ -281,11 +281,14 @@ class Right:
 
     @strawberry.field
     def parent_right(self) -> Optional["Right"]:
-        return Right(db=self.db.parent_right)
+        if self.db.parent_right != self.db:
+            return Right(db=self.db.parent_right)
+        else:
+            return None
 
     @strawberry.field
     def child_rights(self) -> Optional[List["Right"]]:
-        return [Right(db=r) for r in self.db.child_rights]
+        return [Right(db=r) for r in self.db.child_rights if r != self.db]
 
     @strawberry.field
     def groups(self, info: Info) -> Optional[List[Group]]:
