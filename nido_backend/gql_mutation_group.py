@@ -33,6 +33,7 @@ class NewGroupInput:
     name: str
     custom_members: Optional[List[strawberry.ID]] = None
     managing_group: Optional[strawberry.ID] = None
+    right: Optional[strawberry.ID] = None
 
 
 @strawberry.type
@@ -103,6 +104,9 @@ class GroupMutations:
             except AuthorizationError as err:
                 errors.append(Unauthorized())
                 continue
+            if i.right:
+                right_id = decode_gql_id(i.right)[1]
+                ng.right_id = right_id
             if i.managing_group:
                 managing_id = decode_gql_id(i.managing_group)[1]
                 ng.managing_group_id = managing_id
@@ -120,15 +124,13 @@ class GroupMutations:
             if i.custom_members:
                 for mem_id in i.custom_members:
                     entry = DBGroupMembership(
-                        user_id=decode_gql_id(mem_id)[1],
-                        community_id=community_id,
-                        group_id=ng.id,
+                        user_id=decode_gql_id(mem_id)[1], community_id=community_id
                     )
+                    entry.group = ng
                     info.context.db_session.add(entry)
             else:
-                entry = DBGroupMembership(
-                    user_id=au.id, community_id=community_id, group_id=ng.id
-                )
+                entry = DBGroupMembership(user_id=au.id, community_id=community_id)
+                entry.group = ng
                 info.context.db_session.add(entry)
             try:
                 info.context.db_session.commit()

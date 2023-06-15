@@ -248,6 +248,7 @@ class DBGroup(Base):
         back_populates="manages",
         remote_side=[id, community_id],
         passive_deletes="all",
+        post_update=True,
         init=False,
         repr=False,
     )
@@ -284,9 +285,16 @@ class DBGroupMembership(Base):
     community_id: Mapped[int] = mapped_column(
         ForeignKey("community.id", ondelete="CASCADE"), primary_key=True
     )
-    group_id: Mapped[int] = mapped_column(primary_key=True)
+    group_id: Mapped[int] = mapped_column(primary_key=True, init=False)
     user_id: Mapped[int] = mapped_column(
         ForeignKey("user.id", ondelete="CASCADE"), primary_key=True
+    )
+
+    group: Mapped["DBGroup"] = relationship(
+        passive_deletes="all",
+        overlaps="custom_members,groups",
+        init=False,
+        repr=False,
     )
 
 
