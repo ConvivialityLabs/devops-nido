@@ -41,6 +41,7 @@ def get_main_menu(is_admin: bool):
 def get_admin_menu():
     menu_list = []
     menu_list.append(MenuLink("Dashboard", url_for("admin.admin_dashboard.index")))
+    menu_list.append(MenuLink("Manage Groups", url_for("admin.admin_groups.index")))
     menu_list.append(MenuLink("User View", url_for("index")))
     menu_list.append(MenuLink("Logout", url_for("authentication.logout")))
     return menu_list

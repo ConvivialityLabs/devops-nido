@@ -18,8 +18,10 @@ from flask import Blueprint
 
 from .admin_dashboard import bp as dash_bp
 from .admin_dashboard import index as dash_index
+from .admin_manage_groups import bp as groups_bp
 
 bp = Blueprint("admin", __name__)
 
 bp.register_blueprint(dash_bp, url_prefix="/dashboard")
+bp.register_blueprint(groups_bp, url_prefix="/manage-groups")
 bp.add_url_rule("/", endpoint="index", view_func=dash_index)

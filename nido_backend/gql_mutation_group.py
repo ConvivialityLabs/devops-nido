@@ -55,6 +55,18 @@ class RenameGroupPayload:
 
 
 @strawberry.input
+class ChangeManagedByGroupInput:
+    group: strawberry.ID
+    managing_group: strawberry.ID
+
+
+@strawberry.type
+class ChangeManagedByGroupPayload:
+    groups: Optional[List[Group]] = None
+    errors: Optional[List[Error]] = None
+
+
+@strawberry.input
 class AddMembersGroupInput:
     group: strawberry.ID
     members: List[strawberry.ID]
@@ -165,6 +177,33 @@ class GroupMutations:
                 errors.append(DatabaseError())
                 info.context.db_session.rollback()
         return RenameGroupPayload(groups=groups, errors=errors)
+
+    @strawberry.mutation(permission_classes=[IsAuthenticated])
+    def change_managed_by(
+        self, info: Info, input: List[ChangeManagedByGroupInput]
+    ) -> ChangeManagedByGroupPayload:
+        groups: List[Group] = []
+        errors: List[Error] = []
+
+        user = info.context.active_user
+        for i in input:
+            group = info.context.db_session.get(
+                DBGroup, gql_id_to_table_id_unchecked(i.group)
+            )
+            try:
+                oso.authorize(user, "update", group)
+            except AuthorizationError as err:
+                errors.append(Unauthorized())
+                continue
+            group.managing_group_id = gql_id_to_table_id_unchecked(i.managing_group)
+            info.context.db_session.add(group)
+            try:
+                info.context.db_session.commit()
+                groups.append(Group(db=group))
+            except:
+                errors.append(DatabaseError())
+                info.context.db_session.rollback()
+        return ChangeManagedByGroupPayload(groups=groups, errors=errors)
 
     @strawberry.mutation(permission_classes=[IsAuthenticated])
     def add_members(

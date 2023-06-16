@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+{% block title %}Edit {{group.name}} Group{% endblock %}
+{% block body_id %}edit-group{% endblock %}
+{% block body %}
+<main>
+  <h1>{{self.title()}}</h1>
+  <h2>Edit Group Settings</h2>
+  <form method="post">
+    <input type="hidden" name="action" value="rename"/>
+    <input type="hidden" name="group-id" value="{{group.id}}"/>
+    <label>Name:<input name="name" value="{{group.name}}" required></label>
+    <label>Managed by:<select name="managing-group-id">
+      {% for g in parent_groups %}
+        <option {% if g.id == group.managed_by.id %}selected {% endif -%}
+          value="{{g.id}}">{{g.name}}{% if g.id == group.id %} (Itself){% endif -%}
+        </option>
+      {% endfor %}
+    </select></label>
+    <button>Update</button>
+  </form>
+  <h2>Add Members</h2>
+  <table>
+    <thead><tr>
+      <th>Name</th>
+      <th></th>
+    </tr></thead>
+    {% for nonmember in nonmember_list %}
+    <tr>
+      <td>
+        <label for="{{
+            self.body_id() + "-add-member-form-input-" + nonmember.id
+            }}">{{nonmember.collation_name -}}
+        </label>
+      </td>
+      <td>
+        <input form="{{self.body_id() + "-add-member-form"}}" id="{{
+            self.body_id() + "-add-member-form-input-" + nonmember.id
+            }}" type="checkbox" name="user-id" value="{{nonmember.id}}"/>
+      </td>
+    </tr>
+    {% endfor %}
+  </table>
+  <form method="post" id="{{self.body_id() + "-add-member-form"}}">
+    <input type="hidden" name="action" value="add"/>
+    <input type="hidden" name="group-id" value="{{group.id}}"/>
+    <button>Add</button>
+  </form>
+  <h2>Remove Members</h2>
+  <table>
+    <thead><tr>
+      <th>Name</th>
+      <th></th>
+    </tr></thead>
+    {% for member in group.members %}
+    <tr>
+      <td>
+        <label for="{{
+            self.body_id() + "-remove-member-form-input-" + member.id
+            }}">{{member.collation_name -}}
+        </label>
+      </td>
+      <td>
+        <input form="{{self.body_id() + "-remove-member-form"}}" id="{{
+            self.body_id() + "-remove-member-form-input-" + member.id
+            }}" type="checkbox" name="user-id" value="{{member.id}}"/>
+      </td>
+    </tr>
+    {% endfor %}
+  </table>
+  <form method="post" id="{{self.body_id() + "-remove-member-form"}}">
+    <input type="hidden" name="action" value="remove"/>
+    <input type="hidden" name="group-id" value="{{group.id}}"/>
+    <button>Remove</button>
+  </form>
+  <h2>Delete Group</h2>
+  <form method="post">
+    <input type="hidden" name="action" value="delete"/>
+    <input type="hidden" name="group-id" value="{{group.id}}"/>
+    <button>Delete</button>
+  </form>
+</main>
+{% endblock %}

@@ -121,6 +121,10 @@ nav#main-menu {
       content: url('/static/icons/dashboard.svg');
     }
 
+    &[href="/admin/manage-groups/"]:before {
+      content: url('/static/icons/group.svg');
+    }
+
     &[href="/"]:before {
       content: url('/static/icons/user.svg');
     }

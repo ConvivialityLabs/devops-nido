@@ -95,6 +95,13 @@ class BillingChargeFilter:
     dueDate: Optional[str] = strawberry.UNSET
 
 
+@strawberry.input
+class GroupFilter:
+    not_: Optional["GroupFilter"] = strawberry.UNSET
+    or_: Optional[List["GroupFilter"]] = strawberry.UNSET
+    name: Optional[str] = strawberry.UNSET
+
+
 @strawberry.type
 class Community(Node[DBCommunity]):
     dbtype = DBCommunity
@@ -135,7 +142,11 @@ class Community(Node[DBCommunity]):
         )
 
     @strawberry.field
-    def groups(self, info: Info) -> Optional[Connection["Group"]]:
+    def groups(
+        self,
+        info: Info,
+        filter: Optional[GroupFilter] = strawberry.UNSET,
+    ) -> Optional[Connection["Group"]]:
         au = info.context.active_user
         return Connection(
             edges=[
