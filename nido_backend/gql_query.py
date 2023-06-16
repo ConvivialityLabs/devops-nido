@@ -15,7 +15,8 @@
 #  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import datetime
-from typing import List, Optional
+from dataclasses import dataclass, field
+from typing import Generic, List, Optional, Type, TypeVar
 
 import strawberry
 from sqlalchemy import func as sql_func
@@ -25,6 +26,7 @@ from strawberry.types.nodes import SelectedField
 
 from .authorization import oso
 from .db_models import (
+    Base,
     DBBillingCharge,
     DBBillingPayment,
     DBCommunity,
@@ -32,6 +34,7 @@ from .db_models import (
     DBEmailContact,
     DBGroup,
     DBGroupMembership,
+    DBNode,
     DBResidence,
     DBRight,
     DBUser,
@@ -46,13 +49,22 @@ class BillingChargeInputFilter:
     outstanding_only: bool = False
 
 
-@strawberry.type
-class Community:
-    db: strawberry.Private[DBCommunity]
+DB = TypeVar("DB", bound=DBNode)
+
+
+@strawberry.interface
+class Node(Generic[DB]):
+    db: strawberry.Private[DB]
+    dbtype: strawberry.Private[Type[Base]] = field(init=False, repr=False)
 
     @strawberry.field
     def id(self) -> strawberry.ID:
-        return encode_gql_id(DBCommunity.__tablename__, self.db.id)
+        return encode_gql_id(self.dbtype.__tablename__, self.db.id)
+
+
+@strawberry.type
+class Community(Node[DBCommunity]):
+    dbtype = DBCommunity
 
     @strawberry.field
     def name(self) -> str:
@@ -92,12 +104,8 @@ class Community:
 
 
 @strawberry.type
-class Residence:
-    db: strawberry.Private[DBResidence]
-
-    @strawberry.field
-    def id(self) -> strawberry.ID:
-        return encode_gql_id(DBResidence.__tablename__, self.db.id)
+class Residence(Node[DBResidence]):
+    dbtype = DBResidence
 
     @strawberry.field
     def unit_no(self) -> Optional[str]:
@@ -153,12 +161,8 @@ class Issue:
 
 
 @strawberry.type
-class User:
-    db: strawberry.Private[DBUser]
-
-    @strawberry.field
-    def id(self) -> strawberry.ID:
-        return encode_gql_id(DBUser.__tablename__, self.db.id)
+class User(Node[DBUser]):
+    dbtype = DBUser
 
     @strawberry.field
     def personal_name(self) -> str:
@@ -227,12 +231,8 @@ class User:
 
 
 @strawberry.type
-class Group:
-    db: strawberry.Private[DBGroup]
-
-    @strawberry.field
-    def id(self) -> strawberry.ID:
-        return encode_gql_id(DBGroup.__tablename__, self.db.id)
+class Group(Node[DBGroup]):
+    dbtype = DBGroup
 
     @strawberry.field
     def name(self) -> str:
@@ -260,12 +260,8 @@ class Group:
 
 
 @strawberry.type
-class Right:
-    db: strawberry.Private[DBRight]
-
-    @strawberry.field
-    def id(self) -> strawberry.ID:
-        return encode_gql_id(DBRight.__tablename__, self.db.id)
+class Right(Node[DBRight]):
+    dbtype = DBRight
 
     @strawberry.field
     def name(self) -> str:
@@ -297,12 +293,8 @@ class Right:
 
 
 @strawberry.interface
-class ContactMethod:
-    db: strawberry.Private[DBContactMethod]
-
-    @strawberry.field
-    def id(self) -> strawberry.ID:
-        return encode_gql_id(DBContactMethod.__tablename__, self.db.id)
+class ContactMethod(Node[DBContactMethod]):
+    dbtype = DBContactMethod
 
     @strawberry.field
     def user(self) -> User:
@@ -319,12 +311,8 @@ class EmailContact(ContactMethod):
 
 
 @strawberry.type
-class BillingPayment:
-    db: strawberry.Private[DBBillingPayment]
-
-    @strawberry.field
-    def id(self) -> strawberry.ID:
-        return encode_gql_id(DBBillingPayment.__tablename__, self.db.id)
+class BillingPayment(Node[DBBillingPayment]):
+    dbtype = DBBillingPayment
 
     @strawberry.field
     def amount(self) -> int:
@@ -349,12 +337,8 @@ class BillingPayment:
 
 
 @strawberry.type
-class BillingCharge:
-    db: strawberry.Private[DBBillingCharge]
-
-    @strawberry.field
-    def id(self) -> strawberry.ID:
-        return encode_gql_id(DBBillingCharge.__tablename__, self.db.id)
+class BillingCharge(Node[DBBillingCharge]):
+    dbtype = DBBillingCharge
 
     @strawberry.field
     def name(self) -> str:
