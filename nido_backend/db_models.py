@@ -67,10 +67,13 @@ class Base(DeclarativeBase, MappedAsDataclass):
     pass
 
 
-class DBCommunity(Base):
+class DBNode(MappedAsDataclass):
+    id: Mapped[int] = mapped_column(primary_key=True, init=False, repr=False)
+
+
+class DBCommunity(Base, DBNode):
     __tablename__ = "community"
 
-    id: Mapped[int] = mapped_column(primary_key=True, init=False, repr=False)
     name: Mapped[str]
 
     residences: Mapped[List["DBResidence"]] = relationship(
@@ -103,11 +106,10 @@ class DBCommunity(Base):
     )
 
 
-class DBResidence(Base):
+class DBResidence(Base, DBNode):
     __tablename__ = "residence"
     __table_args__ = (sql_schema.UniqueConstraint("id", "community_id"),)
 
-    id: Mapped[int] = mapped_column(primary_key=True, init=False, repr=False)
     community_id: Mapped[int] = mapped_column(
         ForeignKey("community.id", ondelete="CASCADE")
     )
@@ -164,10 +166,9 @@ class DBResidenceOccupancy(Base):
     )
 
 
-class DBUser(Base):
+class DBUser(Base, DBNode):
     __tablename__ = "user"
 
-    id: Mapped[int] = mapped_column(primary_key=True, init=False, repr=False)
     personal_name: Mapped[str] = mapped_column()
     family_name: Mapped[str] = mapped_column()
     full_name: Mapped[str] = column_property(personal_name + " " + family_name)
@@ -200,7 +201,7 @@ class DBUser(Base):
     )
 
 
-class DBGroup(Base):
+class DBGroup(Base, DBNode):
     __tablename__ = "group"
     __table_args__ = (
         sql_schema.UniqueConstraint("id", "community_id"),
@@ -230,7 +231,6 @@ class DBGroup(Base):
         ),
     )
 
-    id: Mapped[int] = mapped_column(primary_key=True, init=False, repr=False)
     community_id: Mapped[int] = mapped_column(
         ForeignKey("community.id", ondelete="CASCADE"), server_default="0"
     )
@@ -246,7 +246,7 @@ class DBGroup(Base):
     )
     managed_by: Mapped["DBGroup"] = relationship(
         back_populates="manages",
-        remote_side=[id, community_id],
+        remote_side="DBGroup.id, DBGroup.community_id",
         passive_deletes="all",
         post_update=True,
         init=False,
@@ -321,7 +321,7 @@ PermissionsMixin = make_dataclass(
 )
 
 
-class DBRight(Base, PermissionsMixin):  # type: ignore
+class DBRight(Base, DBNode, PermissionsMixin):  # type: ignore
     __tablename__ = "right"
     __table_args__ = (
         sql_schema.UniqueConstraint("id", "community_id"),
@@ -338,7 +338,6 @@ class DBRight(Base, PermissionsMixin):  # type: ignore
         ),
     )
 
-    id: Mapped[int] = mapped_column(primary_key=True, init=False, repr=False)
     community_id: Mapped[int] = mapped_column(
         ForeignKey("community.id", ondelete="CASCADE"), server_default="0"
     )
@@ -374,7 +373,7 @@ class DBRight(Base, PermissionsMixin):  # type: ignore
     )
     parent_right: Mapped["DBRight"] = relationship(
         back_populates="child_rights",
-        remote_side=[id, community_id],
+        remote_side="DBRight.id, DBRight.community_id",
         passive_deletes="all",
         init=False,
         repr=False,
@@ -393,10 +392,9 @@ class DBRight(Base, PermissionsMixin):  # type: ignore
     )
 
 
-class DBContactMethod(Base):
+class DBContactMethod(Base, DBNode):
     __tablename__ = "contact_method"
 
-    id: Mapped[int] = mapped_column(primary_key=True, init=False, repr=False)
     user_id: Mapped[int] = mapped_column(
         ForeignKey("user.id", ondelete="CASCADE"), init=False
     )
@@ -420,7 +418,7 @@ class DBEmailContact(DBContactMethod):
     }
 
 
-class DBDirFolder(Base):
+class DBDirFolder(Base, DBNode):
     __tablename__ = "directory_folder"
     __table_args__ = (
         sql_schema.UniqueConstraint("id", "community_id"),
@@ -435,7 +433,6 @@ class DBDirFolder(Base):
         sql_schema.CheckConstraint("name NOT LIKE '%\\_%' ESCAPE '\\'"),
     )
 
-    id: Mapped[int] = mapped_column(primary_key=True, init=False, repr=False)
     community_id: Mapped[int] = mapped_column(
         ForeignKey("community.id", ondelete="CASCADE")
     )
@@ -446,7 +443,7 @@ class DBDirFolder(Base):
     community: Mapped[DBCommunity] = relationship(viewonly=True, init=False, repr=False)
     parent_folder: Mapped["DBDirFolder"] = relationship(
         back_populates="subfolders",
-        remote_side=[id, community_id],
+        remote_side="DBDirFolder.id, DBDirFolder.community_id",
         init=False,
         repr=False,
     )
@@ -467,7 +464,7 @@ class DBDirFolder(Base):
     )
 
 
-class DBDirFile(Base):
+class DBDirFile(Base, DBNode):
     __tablename__ = "directory_file"
     __table_args__ = (
         sql_schema.UniqueConstraint("id", "community_id"),
@@ -486,7 +483,6 @@ class DBDirFile(Base):
         ),
     )
 
-    id: Mapped[int] = mapped_column(primary_key=True, init=False, repr=False)
     community_id: Mapped[int] = mapped_column(
         ForeignKey("community.id", ondelete="CASCADE")
     )
@@ -553,11 +549,10 @@ class DBDirFileGroupPermissions(Base):
     group_id: Mapped[int] = mapped_column(primary_key=True)
 
 
-class DBBillingPayment(Base):
+class DBBillingPayment(Base, DBNode):
     __tablename__ = "billing_payment"
     __table_args__ = (sql_schema.UniqueConstraint("id", "community_id"),)
 
-    id: Mapped[int] = mapped_column(primary_key=True, init=False, repr=False)
     community_id: Mapped[int] = mapped_column(
         ForeignKey("community.id", ondelete="CASCADE")
     )
@@ -578,7 +573,7 @@ class DBBillingPayment(Base):
     )
 
 
-class DBBillingCharge(Base):
+class DBBillingCharge(Base, DBNode):
     __tablename__ = "billing_charge"
     __table_args__ = (
         sql_schema.UniqueConstraint("id", "community_id"),
@@ -598,7 +593,6 @@ class DBBillingCharge(Base):
     # Unclear, so RESTRICT and have the programmer delete this data first
     # if the deletion is intentional. Same reason for user_id RESTRICT.
 
-    id: Mapped[int] = mapped_column(primary_key=True, init=False, repr=False)
     community_id: Mapped[int] = mapped_column(
         ForeignKey("community.id", ondelete="CASCADE")
     )
@@ -633,7 +627,7 @@ class DBBillingCharge(Base):
     )
 
 
-class DBBillingRecurringCharge(Base):
+class DBBillingRecurringCharge(Base, DBNode):
     __tablename__ = "billing_recurring_charge"
     __table_args__ = (
         sql_schema.ForeignKeyConstraint(
@@ -652,7 +646,6 @@ class DBBillingRecurringCharge(Base):
     # Unclear, so RESTRICT and have the programmer delete this data first
     # if the deletion is intentional. Same reason for user_id RESTRICT.
 
-    id: Mapped[int] = mapped_column(primary_key=True, init=False, repr=False)
     community_id: Mapped[int] = mapped_column(
         ForeignKey("community.id", ondelete="CASCADE")
     )
