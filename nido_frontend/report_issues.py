@@ -32,10 +32,14 @@ query Issues {
   activeUser {
     isAdmin
     residences {
-      issues {
-        statusMsg
-        isOpen
-        description
+      edges {
+        node {
+          issues {
+            statusMsg
+            isOpen
+            description
+          }
+        }
       }
     }
   }
@@ -44,8 +48,8 @@ query Issues {
     residences = gql_result.data.active_user.residences
     open_issues = []
     closed_issues = []
-    for residence in residences:
-        for issue in residence.issues:
+    for residence in residences.edges:
+        for issue in residence.node.issues:
             if issue.is_open:
                 open_issues.append(issue)
             else:

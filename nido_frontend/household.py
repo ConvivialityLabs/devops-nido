@@ -43,20 +43,28 @@ query MyHousehold {
   activeUser {
     isAdmin
     residences {
-      unitNo
-      street
-      locality
-      region
-      postcode
-      occupants {
-        fullName
+      edges {
+        node {
+          unitNo
+          street
+          locality
+          region
+          postcode
+          occupants {
+            edges {
+              node {
+                fullName
+              }
+            }
+          }
+        }
       }
     }
   }
 }"""
 
     gql_result = g.gql_client.execute_query(gql_query)
-    residences = gql_result.data.active_user.residences
+    residences = [edge.node for edge in gql_result.data.active_user.residences.edges]
     main_menu_links = get_main_menu(gql_result.data.active_user.is_admin)
     return render_template(
         "household.html", main_menu_links=main_menu_links, residences=residences

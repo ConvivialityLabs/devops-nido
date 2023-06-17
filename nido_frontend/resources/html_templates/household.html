@@ -16,8 +16,8 @@
     </dl>
     <h3>Residence Occupants</h3>
     <ul>
-      {% for member in residence.occupants %}
-      <li>{{member.full_name}}</li>
+      {% for member in residence.occupants.edges %}
+      <li>{{member.node.full_name}}</li>
       {% endfor %}
     </ul>
   {% endfor %}

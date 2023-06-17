@@ -14,9 +14,9 @@
         <th>Email</th>
       </tr>
     </thead>
-    {%- for listing in community.residences %}
+    {%- for listing in residences %}
       <tr>
-        <td rowspan="{{listing.occupants|count or 1}}">
+        <td rowspan="{{listing.occupants.edges|count or 1}}">
           {%- if show_street %}
             {{-listing.street}}<br/>
           {%- endif %}
@@ -25,16 +25,16 @@
           {%- endif -%}
         </td>
         {%- if listing.occupants -%}
-          {% for resident in listing.occupants %}
-            <td>{{resident.full_name}}</td>
+          {% for resident in listing.occupants.edges %}
+            <td>{{resident.node.full_name}}</td>
             <td>
-              {%- for group in resident.groups -%}
+              {%- for group in resident.node.groups -%}
                 {{- group.name }}<br/>
               {%- endfor -%}
             </td>
             <td><!--phone--></td>
             <td>
-              {%- for email in resident.emails -%}
+              {%- for email in resident.node.emails -%}
                 {{-email.email}}<br/>
               {%- endfor -%}
             </td>

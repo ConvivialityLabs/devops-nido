@@ -38,20 +38,28 @@ query Billing {
   activeUser {
     isAdmin
     residences {
-      billingCharges(filter: {outstandingOnly: true}) {
-        remainingBalance
+      edges {
+        node {
+          billingCharges(filter: {outstandingOnly: true}) {
+            edges {
+              node {
+                remainingBalance
+              }
+            }
+          }
+        }
       }
     }
   }
 }"""
     gql_result = g.gql_client.execute_query(gql_query)
-    residences = gql_result.data.active_user.residences
+    residences = [edge.node for edge in gql_result.data.active_user.residences.edges]
     total_due = reduce(
         lambda x, y: x + y,
         [
-            charge.remaining_balance
+            edge.node.remaining_balance
             for residence in residences
-            for charge in residence.billing_charges
+            for edge in residence.billing_charges.edges
         ],
         0,
     )

@@ -62,6 +62,23 @@ class Node(Generic[DB]):
         return encode_gql_id(self.dbtype.__tablename__, self.db.id)
 
 
+N = TypeVar("N", bound=Node)
+
+
+@strawberry.type
+class Edge(Generic[N]):
+    node: N
+
+    @strawberry.field
+    def cursor(self) -> str:
+        return self.node.id
+
+
+@strawberry.type
+class Connection(Generic[N]):
+    edges: List[Edge[N]]
+
+
 @strawberry.type
 class Community(Node[DBCommunity]):
     dbtype = DBCommunity
@@ -71,36 +88,48 @@ class Community(Node[DBCommunity]):
         return self.db.name
 
     @strawberry.field
-    def residences(self) -> Optional[List["Residence"]]:
-        return [Residence(db=r) for r in self.db.residences]
+    def residences(self) -> Optional[Connection["Residence"]]:
+        return Connection(
+            edges=[Edge(node=Residence(db=r)) for r in self.db.residences]
+        )
 
     @strawberry.field
     def billing_charges(
         self, info: Info, filter: Optional[BillingChargeInputFilter] = None
-    ) -> Optional[List["BillingCharge"]]:
+    ) -> Optional[Connection["BillingCharge"]]:
         au = info.context.active_user
-        return [
-            BillingCharge(db=bc)
-            for bc in self.db.billing_charges
-            if oso.is_allowed(au, "query", bc)
-        ]
+        return Connection(
+            edges=[
+                Edge(node=BillingCharge(db=bc))
+                for bc in self.db.billing_charges
+                if oso.is_allowed(au, "query", bc)
+            ]
+        )
 
     @strawberry.field
-    def billing_payments(self) -> Optional[List["BillingPayment"]]:
-        return [BillingPayment(db=bp) for bp in self.db.billing_payments]
+    def billing_payments(self) -> Optional[Connection["BillingPayment"]]:
+        return Connection(
+            edges=[Edge(node=BillingPayment(db=bp)) for bp in self.db.billing_payments]
+        )
 
     @strawberry.field
-    def groups(self, info: Info) -> Optional[List["Group"]]:
+    def groups(self, info: Info) -> Optional[Connection["Group"]]:
         au = info.context.active_user
-        return [Group(db=g) for g in self.db.groups if oso.is_allowed(au, "query", g)]
+        return Connection(
+            edges=[
+                Edge(node=Group(db=g))
+                for g in self.db.groups
+                if oso.is_allowed(au, "query", g)
+            ]
+        )
 
     @strawberry.field
-    def rights(self) -> Optional[List["Right"]]:
-        return [Right(db=r) for r in self.db.rights]
+    def rights(self) -> Optional[Connection["Right"]]:
+        return Connection(edges=[Edge(node=Right(db=r)) for r in self.db.rights])
 
     @strawberry.field
-    def users(self) -> Optional[List["User"]]:
-        return [User(db=u) for u in self.db.users]
+    def users(self) -> Optional[Connection["User"]]:
+        return Connection(edges=[Edge(node=User(db=u)) for u in self.db.users])
 
 
 @strawberry.type
@@ -132,19 +161,21 @@ class Residence(Node[DBResidence]):
         return Community(db=self.db.community)
 
     @strawberry.field
-    def occupants(self) -> Optional[List["User"]]:
-        return [User(db=u) for u in self.db.occupants]
+    def occupants(self) -> Optional[Connection["User"]]:
+        return Connection(edges=[Edge(node=User(db=u)) for u in self.db.occupants])
 
     @strawberry.field
     def billing_charges(
         self, info: Info, filter: Optional[BillingChargeInputFilter] = None
-    ) -> Optional[List["BillingCharge"]]:
+    ) -> Optional[Connection["BillingCharge"]]:
         au = info.context.active_user
-        return [
-            BillingCharge(db=bc)
-            for bc in self.db.billing_charges
-            if oso.is_allowed(au, "query", bc)
-        ]
+        return Connection(
+            edges=[
+                Edge(node=BillingCharge(db=bc))
+                for bc in self.db.billing_charges
+                if oso.is_allowed(au, "query", bc)
+            ]
+        )
 
     @strawberry.field
     def issues(self, info: Info) -> Optional[List["Issue"]]:
@@ -181,14 +212,20 @@ class User(Node[DBUser]):
         return self.db.collation_name
 
     @strawberry.field
-    def residences(self, info: Info) -> Optional[List["Residence"]]:
+    def residences(self, info: Info) -> Optional[Connection["Residence"]]:
         ac = info.context.active_community
         if ac:
-            return [
-                Residence(db=r) for r in self.db.residences if r.community_id == ac.id
-            ]
+            return Connection(
+                edges=[
+                    Edge(node=Residence(db=r))
+                    for r in self.db.residences
+                    if r.community_id == ac.id
+                ]
+            )
         else:
-            return [Residence(db=r) for r in self.db.residences]
+            return Connection(
+                edges=[Edge(node=Residence(db=r)) for r in self.db.residences]
+            )
 
     @strawberry.field
     def groups(self, info: Info) -> Optional[List["Group"]]:

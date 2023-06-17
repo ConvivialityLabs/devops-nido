@@ -46,19 +46,27 @@ query ResidentDir {
   activeCommunity {
     name
     residences {
-      locality
-      postcode
-      region
-      street
-      unitNo
-      occupants {
-        fullName
-        groups {
-          name
-        }
-        emails: contactMethods {
-          ... on EmailContact {
-            email
+      edges {
+        node {
+          locality
+          postcode
+          region
+          street
+          unitNo
+          occupants {
+            edges {
+              node {
+                fullName
+                groups {
+                  name
+                }
+                emails: contactMethods {
+                  ... on EmailContact {
+                    email
+                  }
+                }
+              }
+            }
           }
         }
       }
@@ -67,10 +75,15 @@ query ResidentDir {
 }"""
     gql_result = g.gql_client.execute_query(gql_query)
     community = gql_result.data.active_community
+    residences = [
+        edge.node for edge in gql_result.data.active_community.residences.edges
+    ]
+
     main_menu_links = get_main_menu(gql_result.data.active_user.is_admin)
     return render_template(
         "resident-dir.html",
         main_menu_links=main_menu_links,
         community=community,
+        residences=residences,
         show_street=True,
     )

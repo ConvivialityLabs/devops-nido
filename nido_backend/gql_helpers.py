@@ -61,6 +61,15 @@ def prepare_orm_query(info: Info, db_model_class: Any, gql_field: Any):
         elif isinstance(db_model_attr.property, ColumnProperty):
             db_column_loads.append(db_model_attr)
         elif isinstance(db_model_attr.property, Relationship):
+            # XXX: Refactor this ugliness
+            for maybe_edges_field in field.selections:
+                if isinstance(maybe_edges_field, InlineFragment):
+                    continue
+                if maybe_edges_field.name == "edges":
+                    for maybe_node_field in maybe_edges_field.selections:
+                        if maybe_node_field.name == "node":
+                            field = maybe_node_field
+
             sub_opts = prepare_orm_query(info, db_model_attr.mapper.class_, field)
             if field_filter := field.arguments.get("filter"):
                 if field_filter.get("outstandingOnly"):
