@@ -295,6 +295,11 @@ class Group(Node[DBGroup]):
     def custom_members(self) -> Optional[List[User]]:
         return [User(db=u) for u in self.db.custom_members]
 
+    @strawberry.field
+    def is_allowed(self, info: Info, action: str) -> bool:
+        au = info.context.active_user
+        return oso.is_allowed(au, action, self.db)
+
 
 @strawberry.type
 class Right(Node[DBRight]):
