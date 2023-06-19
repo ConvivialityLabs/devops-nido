@@ -40,7 +40,7 @@ query Billing {
     residences {
       edges {
         node {
-          billingCharges(filter: {outstandingOnly: true}) {
+          billingCharges {
             edges {
               node {
                 remainingBalance

@@ -15,12 +15,14 @@
 #  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import base64
+from itertools import groupby
 from typing import Any, List, Tuple
 
 import strawberry
-from sqlalchemy.orm import ColumnProperty, Relationship, load_only, selectinload
+from sqlalchemy import Select, select
+from sqlalchemy.orm import ColumnProperty, Relationship, attributes, load_only
 from strawberry.types import Info
-from strawberry.types.nodes import InlineFragment
+from strawberry.types.nodes import InlineFragment, SelectedField
 
 
 def encode_gql_id(tablename: str, id: int):
@@ -32,28 +34,33 @@ def decode_gql_id(id: str) -> Tuple[str, int]:
     return (data[0], int(data[1]))
 
 
-def prepare_orm_query(info: Info, db_model_class: Any, gql_field: Any):
+def convert_gqlname_to_pyname(
+    info: Info, gql_class_name: str, gql_field_name: str
+) -> str:
+    # XXX SelectedField.name comes in camelCase but the db columns are in
+    # snake_case. The line below converts them. It's a mess, hopefully a
+    # future library version includes a attribute with snake_case on the
+    # SelectedField object.
+    return (
+        info.schema._schema.type_map[gql_class_name]
+        .fields[gql_field_name]  # type: ignore
+        .extensions["strawberry-definition"]
+        .name
+    )
+
+
+def recursive_eager_load(
+    info: Info, stmt: Select, db_model_class: Any, gql_field: SelectedField
+):
     db_column_loads = []
     db_relationship_loads = []
-    opts = []
 
-    for field in gql_field.selections:
-        if isinstance(field, InlineFragment):
-            # XXX: Right now, an InlineFrangment can be skipped because the only
-            # polymorphic type is DBContactMethod and that has
-            # "polymorphic_load": "inline". But future development might need to
-            # put substantial logic here.
+    for subfield in gql_field.selections:
+        if not isinstance(subfield, SelectedField):
+            # TODO: Handle the case of Fragments and InlineFragments
             continue
-
-        # XXX SelectedField.name comes in camelCase but the db columns are in
-        # snake_case. The line below converts them. It's a mess, hopefully a
-        # future library version includes a attribute with snake_case on the
-        # SelectedField object.
-        pyname = (
-            info.schema._schema.type_map[db_model_class.__name__[2:]]
-            .fields[field.name]  # type: ignore
-            .extensions["strawberry-definition"]
-            .name
+        pyname = convert_gqlname_to_pyname(
+            info, db_model_class.__name__[2:], subfield.name
         )
         db_model_attr = getattr(db_model_class, pyname, None)
         if db_model_attr is None or not hasattr(db_model_attr, "property"):
@@ -61,32 +68,62 @@ def prepare_orm_query(info: Info, db_model_class: Any, gql_field: Any):
         elif isinstance(db_model_attr.property, ColumnProperty):
             db_column_loads.append(db_model_attr)
         elif isinstance(db_model_attr.property, Relationship):
-            # XXX: Refactor this ugliness
-            for maybe_edges_field in field.selections:
-                if isinstance(maybe_edges_field, InlineFragment):
-                    continue
-                if maybe_edges_field.name == "edges":
-                    for maybe_node_field in maybe_edges_field.selections:
-                        if maybe_node_field.name == "node":
-                            field = maybe_node_field
-
-            sub_opts = prepare_orm_query(info, db_model_attr.mapper.class_, field)
-            if field_filter := field.arguments.get("filter"):
-                if field_filter.get("outstandingOnly"):
-                    db_model_attr = db_model_attr.and_(
-                        db_model_attr.mapper.class_.remaining_balance > 0
-                    )
-
-            db_relationship_loads.append(selectinload(db_model_attr).options(*sub_opts))
-
-    if db_model_class.__name__ == "DBContactMethod":
-        # Needed for oso policy evaluation
-        db_column_loads.append(db_model_class.user_id)
+            db_relationship_loads.append((db_model_attr, subfield))
 
     if len(db_column_loads) > 0:
-        opts.append(load_only(*db_column_loads))
+        lo = load_only(*db_column_loads)
     else:
-        opts.append(load_only(db_model_class.id))
-    if len(db_relationship_loads) > 0:
-        opts.extend(db_relationship_loads)
-    return opts
+        lo = load_only(db_model_class.id)
+    rows = info.context.db_session.execute(stmt.options(lo)).all()
+
+    for relationship_attr, gql_subfield in db_relationship_loads:
+        load_relationship(info, db_model_class, relationship_attr, gql_subfield, rows)
+
+    return rows
+
+
+def get_best_parent_id_col(relationship: Relationship, ParentDBClass: Any):
+    for column in relationship.remote_side:
+        if ParentDBClass.id in [fk.column for fk in column.foreign_keys]:
+            return column
+    return ParentDBClass.id
+
+
+def load_relationship(
+    info: Info, ParentDBClass, relationship_attr, gql_subfield, parent_rows
+):
+    ChildDBClass = relationship_attr.mapper.class_
+    parent_id_col = get_best_parent_id_col(relationship_attr.property, ParentDBClass)
+
+    child_stmt = select(ChildDBClass, parent_id_col)
+    if relationship_attr.property.secondary is not None:
+        child_stmt = child_stmt.join(relationship_attr.property.secondary)
+    elif parent_id_col == ParentDBClass.id and ParentDBClass == ChildDBClass:
+        ChildDBClass = aliased(ChildDBClass)
+        child_stmt = select(ChildDBClass, parent_id_col.label("parent_id"))
+        child_stmt = child_stmt.join(ChildDBClass, relationship_attr)
+    elif parent_id_col == ParentDBClass.id:
+        child_stmt = child_stmt.join(relationship_attr)
+
+    for maybe_edges_field in gql_subfield.selections:
+        if (
+            isinstance(maybe_edges_field, SelectedField)
+            and maybe_edges_field.name == "edges"
+        ):
+            for maybe_node_field in maybe_edges_field.selections:
+                if (
+                    isinstance(maybe_node_field, SelectedField)
+                    and maybe_node_field.name == "node"
+                ):
+                    gql_subfield = maybe_node_field
+
+    child_stmt = child_stmt.where(parent_id_col.in_([row[0].id for row in parent_rows]))
+    child_stmt = child_stmt.order_by(parent_id_col, ChildDBClass.id)
+    child_rows = recursive_eager_load(info, child_stmt, ChildDBClass, gql_subfield)
+    for k, g in groupby(child_rows, lambda row: row[1]):
+        p = info.context.db_session.get(ParentDBClass, k)
+        gl = [row[0] for row in g]
+        if relationship_attr.property.direction.name == "MANYTOONE":
+            assert len(gl) == 1
+            gl = gl[0]
+        attributes.set_committed_value(p, relationship_attr.key, gl)

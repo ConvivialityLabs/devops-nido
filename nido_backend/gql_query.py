@@ -40,14 +40,8 @@ from .db_models import (
     DBUser,
 )
 from .enums import PermissionsFlag
-from .gql_helpers import encode_gql_id, prepare_orm_query
+from .gql_helpers import encode_gql_id, recursive_eager_load
 from .gql_permissions import IsAuthenticated
-
-
-@strawberry.input
-class BillingChargeInputFilter:
-    outstanding_only: bool = False
-
 
 DB = TypeVar("DB", bound=DBNode)
 
@@ -94,9 +88,7 @@ class Community(Node[DBCommunity]):
         )
 
     @strawberry.field
-    def billing_charges(
-        self, info: Info, filter: Optional[BillingChargeInputFilter] = None
-    ) -> Optional[Connection["BillingCharge"]]:
+    def billing_charges(self, info: Info) -> Optional[Connection["BillingCharge"]]:
         au = info.context.active_user
         return Connection(
             edges=[
@@ -165,9 +157,7 @@ class Residence(Node[DBResidence]):
         return Connection(edges=[Edge(node=User(db=u)) for u in self.db.occupants])
 
     @strawberry.field
-    def billing_charges(
-        self, info: Info, filter: Optional[BillingChargeInputFilter] = None
-    ) -> Optional[Connection["BillingCharge"]]:
+    def billing_charges(self, info: Info) -> Optional[Connection["BillingCharge"]]:
         au = info.context.active_user
         return Connection(
             edges=[
@@ -417,10 +407,11 @@ class Query:
             if isinstance(field, SelectedField) and field.name == "activeUser":
                 au_field = field
                 break
-        opts = prepare_orm_query(info, DBUser, au_field)
-        u = info.context.db_session.get(DBUser, user_id, options=opts)
-        if u:
-            return User(db=u)
+        assert au_field is not None
+        stmt = select(DBUser).where(DBUser.id == user_id)
+        rows = recursive_eager_load(info, stmt, DBUser, au_field)
+        if len(rows) == 1:
+            return User(db=rows[0][0])
         else:
             return None
 
@@ -432,9 +423,10 @@ class Query:
             if isinstance(field, SelectedField) and field.name == "activeCommunity":
                 ac_field = field
                 break
-        opts = prepare_orm_query(info, DBCommunity, ac_field)
-        c = info.context.db_session.get(DBCommunity, community_id, options=opts)
-        if c:
-            return Community(db=c)
+        assert ac_field is not None
+        stmt = select(DBCommunity).where(DBCommunity.id == community_id)
+        rows = recursive_eager_load(info, stmt, DBCommunity, ac_field)
+        if len(rows) == 1:
+            return Community(db=rows[0][0])
         else:
             return None
