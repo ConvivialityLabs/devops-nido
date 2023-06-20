@@ -19,8 +19,10 @@ from itertools import groupby
 from typing import Any, List, Tuple
 
 import strawberry
-from sqlalchemy import Select, select
-from sqlalchemy.orm import ColumnProperty, Relationship, attributes, load_only
+from sqlalchemy import Select
+from sqlalchemy import func as sql_func
+from sqlalchemy import inspect, select
+from sqlalchemy.orm import ColumnProperty, Relationship, aliased, attributes, load_only
 from strawberry.types import Info
 from strawberry.types.nodes import InlineFragment, SelectedField
 
@@ -54,14 +56,15 @@ def recursive_eager_load(
 ):
     db_column_loads = []
     db_relationship_loads = []
+    inspection = inspect(db_model_class)
+    assert inspection is not None
+    gql_class_name = inspection.class_.__name__[2:]
 
     for subfield in gql_field.selections:
         if not isinstance(subfield, SelectedField):
             # TODO: Handle the case of Fragments and InlineFragments
             continue
-        pyname = convert_gqlname_to_pyname(
-            info, db_model_class.__name__[2:], subfield.name
-        )
+        pyname = convert_gqlname_to_pyname(info, gql_class_name, subfield.name)
         db_model_attr = getattr(db_model_class, pyname, None)
         if db_model_attr is None or not hasattr(db_model_attr, "property"):
             continue
@@ -77,7 +80,9 @@ def recursive_eager_load(
     rows = info.context.db_session.execute(stmt.options(lo)).all()
 
     for relationship_attr, gql_subfield in db_relationship_loads:
-        load_relationship(info, db_model_class, relationship_attr, gql_subfield, rows)
+        load_relationship(
+            info, inspection.class_, relationship_attr, gql_subfield, rows
+        )
 
     return rows
 
@@ -95,7 +100,7 @@ def load_relationship(
     ChildDBClass = relationship_attr.mapper.class_
     parent_id_col = get_best_parent_id_col(relationship_attr.property, ParentDBClass)
 
-    child_stmt = select(ChildDBClass, parent_id_col)
+    child_stmt = select(ChildDBClass, parent_id_col.label("parent_id"))
     if relationship_attr.property.secondary is not None:
         child_stmt = child_stmt.join(relationship_attr.property.secondary)
     elif parent_id_col == ParentDBClass.id and ParentDBClass == ChildDBClass:
@@ -104,6 +109,8 @@ def load_relationship(
         child_stmt = child_stmt.join(ChildDBClass, relationship_attr)
     elif parent_id_col == ParentDBClass.id:
         child_stmt = child_stmt.join(relationship_attr)
+
+    load_number = gql_subfield.arguments.get("first")
 
     for maybe_edges_field in gql_subfield.selections:
         if (
@@ -118,7 +125,21 @@ def load_relationship(
                     gql_subfield = maybe_node_field
 
     child_stmt = child_stmt.where(parent_id_col.in_([row[0].id for row in parent_rows]))
+
+    if load_number:
+        cte = child_stmt.add_columns(
+            sql_func.row_number()
+            .over(partition_by=parent_id_col, order_by=ChildDBClass.id)
+            .label("rn")
+        ).cte()
+        ChildDBClass = aliased(ChildDBClass, cte)  # type: ignore
+        parent_id_col = cte.c.parent_id
+        child_stmt = select(ChildDBClass, cte.c.parent_id).where(
+            cte.c.rn <= int(load_number)
+        )
+
     child_stmt = child_stmt.order_by(parent_id_col, ChildDBClass.id)
+
     child_rows = recursive_eager_load(info, child_stmt, ChildDBClass, gql_subfield)
     for k, g in groupby(child_rows, lambda row: row[1]):
         p = info.context.db_session.get(ParentDBClass, k)

@@ -82,7 +82,10 @@ class Community(Node[DBCommunity]):
         return self.db.name
 
     @strawberry.field
-    def residences(self) -> Optional[Connection["Residence"]]:
+    def residences(
+        self,
+        first: Optional[int] = strawberry.UNSET,
+    ) -> Optional[Connection["Residence"]]:
         return Connection(
             edges=[Edge(node=Residence(db=r)) for r in self.db.residences]
         )
