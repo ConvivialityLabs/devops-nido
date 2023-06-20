@@ -112,9 +112,11 @@ def load_relationship(
     parent_rows: List[Row],
 ):
     ChildDBClass = relationship_attr.mapper.class_
-    parent_id_col = get_best_parent_id_col(relationship_attr.property, ParentDBClass)
+    parent_ids = [row[0].id for row in parent_rows]
 
+    parent_id_col = get_best_parent_id_col(relationship_attr.property, ParentDBClass)
     child_stmt = select(ChildDBClass, parent_id_col.label("parent_id"))
+
     if relationship_attr.property.secondary is not None:
         child_stmt = child_stmt.join(relationship_attr.property.secondary)
     elif parent_id_col == ParentDBClass.id and ParentDBClass == ChildDBClass:
@@ -138,7 +140,7 @@ def load_relationship(
                 ):
                     gql_subfield = maybe_node_field
 
-    child_stmt = child_stmt.where(parent_id_col.in_([row[0].id for row in parent_rows]))
+    child_stmt = child_stmt.where(parent_id_col.in_(parent_ids))
 
     if load_number:
         cte = child_stmt.add_columns(
@@ -157,8 +159,17 @@ def load_relationship(
     child_rows = recursive_eager_load(info, child_stmt, ChildDBClass, gql_subfield)
     for k, g in groupby(child_rows, lambda row: row[1]):
         p = info.context.db_session.get(ParentDBClass, k)
+        parent_ids.remove(k)
         gl = [row[0] for row in g]
         if relationship_attr.property.direction.name == "MANYTOONE":
             assert len(gl) == 1
             gl = gl[0]
         attributes.set_committed_value(p, relationship_attr.key, gl)
+
+    # Handle the remaining parents that don't have any children
+    for k in parent_ids:
+        p = info.context.db_session.get(ParentDBClass, k)
+        if relationship_attr.property.direction.name == "MANYTOONE":
+            attributes.set_committed_value(p, relationship_attr.key, None)
+        else:
+            attributes.set_committed_value(p, relationship_attr.key, [])
