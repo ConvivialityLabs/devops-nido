@@ -16,15 +16,25 @@
 
 import base64
 from itertools import groupby
-from typing import Any, List, Tuple
+from typing import Any, List, Tuple, Type
 
 import strawberry
-from sqlalchemy import Select
+from sqlalchemy import Row, Select
 from sqlalchemy import func as sql_func
 from sqlalchemy import inspect, select
-from sqlalchemy.orm import ColumnProperty, Relationship, aliased, attributes, load_only
+from sqlalchemy.orm import (
+    ColumnProperty,
+    InstrumentedAttribute,
+    MapperProperty,
+    Relationship,
+    aliased,
+    attributes,
+    load_only,
+)
 from strawberry.types import Info
 from strawberry.types.nodes import InlineFragment, SelectedField
+
+from .db_models import DBNode
 
 
 def encode_gql_id(tablename: str, id: int):
@@ -52,11 +62,11 @@ def convert_gqlname_to_pyname(
 
 
 def recursive_eager_load(
-    info: Info, stmt: Select, db_model_class: Any, gql_field: SelectedField
+    info: Info, stmt: Select, DBModelClass: Type[DBNode], gql_field: SelectedField
 ):
     db_column_loads = []
     db_relationship_loads = []
-    inspection = inspect(db_model_class)
+    inspection = inspect(DBModelClass)
     assert inspection is not None
     gql_class_name = inspection.class_.__name__[2:]
 
@@ -65,7 +75,7 @@ def recursive_eager_load(
             # TODO: Handle the case of Fragments and InlineFragments
             continue
         pyname = convert_gqlname_to_pyname(info, gql_class_name, subfield.name)
-        db_model_attr = getattr(db_model_class, pyname, None)
+        db_model_attr = getattr(DBModelClass, pyname, None)
         if db_model_attr is None or not hasattr(db_model_attr, "property"):
             continue
         elif isinstance(db_model_attr.property, ColumnProperty):
@@ -76,7 +86,7 @@ def recursive_eager_load(
     if len(db_column_loads) > 0:
         lo = load_only(*db_column_loads)
     else:
-        lo = load_only(db_model_class.id)
+        lo = load_only(DBModelClass.id)
     rows = info.context.db_session.execute(stmt.options(lo)).all()
 
     for relationship_attr, gql_subfield in db_relationship_loads:
@@ -87,7 +97,7 @@ def recursive_eager_load(
     return rows
 
 
-def get_best_parent_id_col(relationship: Relationship, ParentDBClass: Any):
+def get_best_parent_id_col(relationship: MapperProperty, ParentDBClass: Type[DBNode]):
     for column in relationship.remote_side:
         if ParentDBClass.id in [fk.column for fk in column.foreign_keys]:
             return column
@@ -95,7 +105,11 @@ def get_best_parent_id_col(relationship: Relationship, ParentDBClass: Any):
 
 
 def load_relationship(
-    info: Info, ParentDBClass, relationship_attr, gql_subfield, parent_rows
+    info: Info,
+    ParentDBClass: Type[DBNode],
+    relationship_attr: InstrumentedAttribute,
+    gql_subfield: SelectedField,
+    parent_rows: List[Row],
 ):
     ChildDBClass = relationship_attr.mapper.class_
     parent_id_col = get_best_parent_id_col(relationship_attr.property, ParentDBClass)
