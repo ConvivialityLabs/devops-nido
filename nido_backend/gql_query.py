@@ -73,6 +73,28 @@ class Connection(Generic[N]):
     edges: List[Edge[N]]
 
 
+@strawberry.input
+class ResidenceFilter:
+    not_: Optional["ResidenceFilter"] = strawberry.UNSET
+    or_: Optional[List["ResidenceFilter"]] = strawberry.UNSET
+    unit_no: Optional[str] = strawberry.UNSET
+    street: Optional[str] = strawberry.UNSET
+    locality: Optional[str] = strawberry.UNSET
+    postcode: Optional[str] = strawberry.UNSET
+    region: Optional[str] = strawberry.UNSET
+
+
+@strawberry.input
+class BillingChargeFilter:
+    not_: Optional["BillingChargeFilter"] = strawberry.UNSET
+    or_: Optional[List["BillingChargeFilter"]] = strawberry.UNSET
+    name: Optional[str] = strawberry.UNSET
+    amount: Optional[str] = strawberry.UNSET
+    remainingBalance: Optional[str] = strawberry.UNSET
+    chargeDate: Optional[str] = strawberry.UNSET
+    dueDate: Optional[str] = strawberry.UNSET
+
+
 @strawberry.type
 class Community(Node[DBCommunity]):
     dbtype = DBCommunity
@@ -85,13 +107,18 @@ class Community(Node[DBCommunity]):
     def residences(
         self,
         first: Optional[int] = strawberry.UNSET,
+        filter: Optional[ResidenceFilter] = strawberry.UNSET,
     ) -> Optional[Connection["Residence"]]:
         return Connection(
             edges=[Edge(node=Residence(db=r)) for r in self.db.residences]
         )
 
     @strawberry.field
-    def billing_charges(self, info: Info) -> Optional[Connection["BillingCharge"]]:
+    def billing_charges(
+        self,
+        info: Info,
+        filter: Optional[BillingChargeFilter] = strawberry.UNSET,
+    ) -> Optional[Connection["BillingCharge"]]:
         au = info.context.active_user
         return Connection(
             edges=[
@@ -160,7 +187,11 @@ class Residence(Node[DBResidence]):
         return Connection(edges=[Edge(node=User(db=u)) for u in self.db.occupants])
 
     @strawberry.field
-    def billing_charges(self, info: Info) -> Optional[Connection["BillingCharge"]]:
+    def billing_charges(
+        self,
+        info: Info,
+        filter: Optional[BillingChargeFilter] = strawberry.UNSET,
+    ) -> Optional[Connection["BillingCharge"]]:
         au = info.context.active_user
         return Connection(
             edges=[
@@ -362,13 +393,19 @@ class BillingPayment(Node[DBBillingPayment]):
         return self.db.payment_date
 
     @strawberry.field
-    def charges(self, info: Info) -> Optional[List["BillingCharge"]]:
+    def charges(
+        self,
+        info: Info,
+        filter: Optional[BillingChargeFilter] = strawberry.UNSET,
+    ) -> Optional[Connection["BillingCharge"]]:
         au = info.context.active_user
-        return [
-            BillingCharge(db=bc)
-            for bc in self.db.charges
-            if oso.is_allowed(au, "query", bc)
-        ]
+        return Connection(
+            edges=[
+                Edge(node=BillingCharge(db=bc))
+                for bc in self.db.charges
+                if oso.is_allowed(au, "query", bc)
+            ]
+        )
 
 
 @strawberry.type
