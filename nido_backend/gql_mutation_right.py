@@ -31,7 +31,7 @@ from .gql_errors import (
     Unauthorized,
     parse_integrity_error,
 )
-from .gql_helpers import decode_gql_id
+from .gql_helpers import gql_id_to_table_id_unchecked
 from .gql_permissions import IsAuthenticated
 from .gql_query import Right
 
@@ -60,7 +60,7 @@ class RightMutations:
 
         au = info.context.active_user
         for i in input:
-            parent_id = decode_gql_id(i.parent_id)[1]
+            parent_id = gql_id_to_table_id_unchecked(i.parent_id)
             parent_right = info.context.db_session.get(DBRight, parent_id)
             new_right = DBRight(name=i.name, community_id=info.context.community_id)
             new_right.parent_right = parent_right

@@ -31,7 +31,7 @@ from .gql_errors import (
     Unauthorized,
     parse_integrity_error,
 )
-from .gql_helpers import decode_gql_id
+from .gql_helpers import gql_id_to_table_id_unchecked
 from .gql_permissions import IsAuthenticated
 from .gql_query import EmailContact
 
@@ -86,7 +86,7 @@ class ContactMethodMutations:
 
         au = info.context.active_user
         for i in input:
-            cm_id = decode_gql_id(i.id)[1]
+            cm_id = gql_id_to_table_id_unchecked(i.id)
             cm = info.context.db_session.get(DBContactMethod, cm_id)
             if not cm:
                 errors.append(NotFound())

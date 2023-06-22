@@ -23,7 +23,7 @@ from strawberry.types import Info
 from .authorization import AuthorizationError, oso
 from .db_models import DBBillingCharge
 from .gql_errors import DatabaseError, Error, NotFound, Unauthorized
-from .gql_helpers import decode_gql_id
+from .gql_helpers import decode_gql_id, gql_id_to_table_id_unchecked
 from .gql_permissions import IsAuthenticated
 from .gql_query import BillingCharge
 
@@ -113,7 +113,7 @@ class BillingChargeMutations:
         user = info.context.active_user
         for i in input:
             charge = info.context.db_session.get(
-                DBBillingCharge, decode_gql_id(i.charge)[1]
+                DBBillingCharge, gql_id_to_table_id_unchecked(i.charge)
             )
             try:
                 oso.authorize(user, "edit", charge)
@@ -143,7 +143,7 @@ class BillingChargeMutations:
         user = info.context.active_user
         for i in input:
             group = info.context.db_session.get(
-                DBBillingCharge, decode_gql_id(i.charge)[1]
+                DBBillingCharge, gql_id_to_table_id_unchecked(i.charge)
             )
             if not group:
                 errors.append(NotFound())

@@ -42,13 +42,23 @@ from strawberry.types.nodes import InlineFragment, SelectedField
 from .db_models import DBNode
 
 
-def encode_gql_id(tablename: str, id: int):
-    return base64.b64encode(f"{tablename}:{id}".encode()).decode()
+def encode_gql_id(table_name: str, table_id: int) -> str:
+    table_name_b = (table_name + "\0" * (3 - len(table_name) % 3)).encode()
+    # SQLite and Postgres both use 8 bytes for their biggest integer storage.
+    # Encode the table_id to 9 bytes for BASE64 alignment and future-proofing.
+    table_id_b = table_id.to_bytes(9, byteorder="big")
+    return base64.urlsafe_b64encode(table_name_b + table_id_b).decode()
 
 
-def decode_gql_id(id: str) -> Tuple[str, int]:
-    data = base64.b64decode(id.encode("ascii")).decode("ascii").split(":")
-    return (data[0], int(data[1]))
+def decode_gql_id(gql_id: str) -> Tuple[str, int]:
+    table_name = base64.urlsafe_b64decode(gql_id[:-12]).decode().strip("\0")
+    table_id_bytes = base64.urlsafe_b64decode(gql_id[-12:])
+    return (table_name, int.from_bytes(table_id_bytes, byteorder="big"))
+
+
+def gql_id_to_table_id_unchecked(gql_id: str) -> int:
+    table_id_bytes = base64.urlsafe_b64decode(gql_id[-12:])
+    return int.from_bytes(table_id_bytes, byteorder="big")
 
 
 def convert_gqlname_to_pyname(

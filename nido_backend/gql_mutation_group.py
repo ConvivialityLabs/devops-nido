@@ -23,7 +23,7 @@ from strawberry.types import Info
 from .authorization import AuthorizationError, oso
 from .db_models import DBGroup, DBGroupMembership, DBUser
 from .gql_errors import DatabaseError, Error, NotFound, Unauthorized
-from .gql_helpers import decode_gql_id
+from .gql_helpers import gql_id_to_table_id_unchecked
 from .gql_permissions import IsAuthenticated
 from .gql_query import Group
 
@@ -105,10 +105,10 @@ class GroupMutations:
                 errors.append(Unauthorized())
                 continue
             if i.right:
-                right_id = decode_gql_id(i.right)[1]
+                right_id = gql_id_to_table_id_unchecked(i.right)
                 ng.right_id = right_id
             if i.managing_group:
-                managing_id = decode_gql_id(i.managing_group)[1]
+                managing_id = gql_id_to_table_id_unchecked(i.managing_group)
                 ng.managing_group_id = managing_id
                 info.context.db_session.add(ng)
             else:
@@ -124,7 +124,8 @@ class GroupMutations:
             if i.custom_members:
                 for mem_id in i.custom_members:
                     entry = DBGroupMembership(
-                        user_id=decode_gql_id(mem_id)[1], community_id=community_id
+                        user_id=gql_id_to_table_id_unchecked(mem_id),
+                        community_id=community_id,
                     )
                     entry.group = ng
                     info.context.db_session.add(entry)
@@ -147,7 +148,9 @@ class GroupMutations:
 
         user = info.context.active_user
         for i in input:
-            group = info.context.db_session.get(DBGroup, decode_gql_id(i.group)[1])
+            group = info.context.db_session.get(
+                DBGroup, gql_id_to_table_id_unchecked(i.group)
+            )
             try:
                 oso.authorize(user, "update", group)
             except AuthorizationError as err:
@@ -172,14 +175,18 @@ class GroupMutations:
 
         user = info.context.active_user
         for i in input:
-            group = info.context.db_session.get(DBGroup, decode_gql_id(i.group)[1])
+            group = info.context.db_session.get(
+                DBGroup, gql_id_to_table_id_unchecked(i.group)
+            )
             try:
                 oso.authorize(user, "update", group)
             except AuthorizationError as err:
                 errors.append(Unauthorized())
                 continue
             for m_id in i.members:
-                member = info.context.db_session.get(DBUser, decode_gql_id(m_id)[1])
+                member = info.context.db_session.get(
+                    DBUser, gql_id_to_table_id_unchecked(m_id)
+                )
                 group.custom_members.append(member)
             info.context.db_session.add(group)
             try:
@@ -200,7 +207,9 @@ class GroupMutations:
         user = info.context.active_user
         community_id = info.context.community_id
         for i in input:
-            group = info.context.db_session.get(DBGroup, decode_gql_id(i.group)[1])
+            group = info.context.db_session.get(
+                DBGroup, gql_id_to_table_id_unchecked(i.group)
+            )
             try:
                 oso.authorize(user, "update", group)
             except AuthorizationError as err:
@@ -210,7 +219,7 @@ class GroupMutations:
                 DBGroupMembership.community_id == community_id,
                 DBGroupMembership.group_id == group.id,
                 DBGroupMembership.user_id.in_(
-                    [decode_gql_id(m_id)[1] for m_id in i.members]
+                    [gql_id_to_table_id_unchecked(m_id) for m_id in i.members]
                 ),
             )
             info.context.db_session.execute(stmt)
@@ -227,7 +236,9 @@ class GroupMutations:
         errors: List[Error] = []
         user = info.context.active_user
         for i in input:
-            group = info.context.db_session.get(DBGroup, decode_gql_id(i.group)[1])
+            group = info.context.db_session.get(
+                DBGroup, gql_id_to_table_id_unchecked(i.group)
+            )
             if not group:
                 errors.append(NotFound())
                 continue
