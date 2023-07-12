@@ -242,11 +242,12 @@ class DBGroup(Base, DBNode):
     name: Mapped[str]
 
     community: Mapped[DBCommunity] = relationship(
-        back_populates="groups", viewonly=True, init=False, repr=False
+        back_populates="groups", init=False, repr=False
     )
     managed_by: Mapped["DBGroup"] = relationship(
         back_populates="manages",
-        remote_side="DBGroup.id, DBGroup.community_id",
+        remote_side="DBGroup.id",
+        foreign_keys=[managing_group_id],
         passive_deletes="all",
         post_update=True,
         init=False,
@@ -254,6 +255,7 @@ class DBGroup(Base, DBNode):
     )
     manages: Mapped[List["DBGroup"]] = relationship(
         back_populates="managed_by",
+        foreign_keys=[managing_group_id],
         passive_deletes="all",
         init=False,
         repr=False,
@@ -369,17 +371,19 @@ class DBRight(Base, DBNode, PermissionsMixin):  # type: ignore
         return self.permissions & request == request
 
     community: Mapped[DBCommunity] = relationship(
-        back_populates="rights", viewonly=True, init=False, repr=False
+        back_populates="rights", init=False, repr=False
     )
     parent_right: Mapped["DBRight"] = relationship(
         back_populates="child_rights",
-        remote_side="DBRight.id, DBRight.community_id",
+        remote_side="DBRight.id",
+        foreign_keys=[parent_right_id],
         passive_deletes="all",
         init=False,
         repr=False,
     )
     child_rights: Mapped[List["DBRight"]] = relationship(
         back_populates="parent_right",
+        foreign_keys=[parent_right_id],
         passive_deletes="all",
         init=False,
         repr=False,
