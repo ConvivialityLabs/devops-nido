@@ -79,11 +79,16 @@ def convert_gqlname_to_pyname(
 def recursive_eager_load(
     info: Info, stmt: Select, DBModelClass: Type[DBNode], gql_field: SelectedField
 ):
-    db_column_loads = []
-    db_relationship_loads = []
     inspection = inspect(DBModelClass)
     assert inspection is not None
     gql_class_name = inspection.class_.__name__[2:]
+    db_relationship_loads = []
+    db_column_loads = [
+        getattr(DBModelClass, col.key)
+        for col in inspection.mapper.columns
+        if len(col.foreign_keys) > 0
+    ]
+    db_column_loads.append(DBModelClass.id)
 
     for subfield in gql_field.selections:
         if not isinstance(subfield, SelectedField):
@@ -98,11 +103,8 @@ def recursive_eager_load(
         elif isinstance(db_model_attr.property, Relationship):
             db_relationship_loads.append((db_model_attr, subfield))
 
-    if len(db_column_loads) > 0:
-        lo = load_only(*db_column_loads)
-    else:
-        lo = load_only(DBModelClass.id)
-    rows = info.context.db_session.execute(stmt.options(lo)).all()
+    stmt = stmt.options(load_only(*db_column_loads))
+    rows = info.context.db_session.execute(stmt).all()
 
     for relationship_attr, gql_subfield in db_relationship_loads:
         load_relationship(
