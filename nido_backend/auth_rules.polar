@@ -25,7 +25,7 @@ has_role(user: User, "manager", group: Group) if
     member matches {id: user.id};
 
 resource Right {
-    permissions = ["delegate"];
+    permissions = ["delegate", "revoke"];
     roles = ["possessor", "delegator"];
 
     "delegate" if "delegator";
@@ -42,6 +42,9 @@ has_role(user: User, "delegator", right: Right) if
     right.parent_right.permits(Permissions.CAN_DELEGATE) and
     right.parent_right.permits(right.permissions);
 
+has_permission(user: User, "revoke", right: Right) if
+    has_role(user, "delegator", right)
+    and right.id != right.parent_right_id;
 
 resource ContactMethod {
     permissions = ["query", "delete"];

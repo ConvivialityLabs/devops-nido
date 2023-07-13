@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}Create New Right{% endblock %}
+{% block body_id %}new-right{% endblock %}
+{% block body %}
+<main>
+  <h1>{{self.title()}}</h1>
+  <h2>New Right Settings</h2>
+  <form method="post" id="{{self.body_id() + "-form" }}">
+    <label>New Right Name:<input name="name" required></label>
+    <label>Delegated from:<select name="parent-id">
+        {% for parent in parents %}
+          <option value="{{parent.id}}">{{parent.name}}</option>
+        {% endfor %}
+    </select></label>
+    <fieldset>
+    {% for member in perms %}
+      <label>{{member.name}}:<input type="checkbox" name="{{
+        member.name}}"></label>
+    {% endfor %}
+    </fieldset>
+    <button>Create</button>
+  </form>
+</main>
+{% endblock %}

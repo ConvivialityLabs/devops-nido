@@ -125,6 +125,10 @@ nav#main-menu {
       content: url('/static/icons/group.svg');
     }
 
+    &[href="/admin/manage-rights/"]:before {
+      content: url('/static/icons/key.svg');
+    }
+
     &[href="/"]:before {
       content: url('/static/icons/user.svg');
     }

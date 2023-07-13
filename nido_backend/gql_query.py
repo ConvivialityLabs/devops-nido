@@ -368,6 +368,11 @@ class Right(Node[DBRight]):
         au = info.context.active_user
         return [Group(db=g) for g in self.db.groups if oso.is_allowed(au, "query", g)]
 
+    @strawberry.field
+    def is_allowed(self, info: Info, action: str) -> bool:
+        au = info.context.active_user
+        return oso.is_allowed(au, action, self.db)
+
 
 @strawberry.interface
 class ContactMethod(Node[DBContactMethod]):

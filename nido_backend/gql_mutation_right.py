@@ -49,6 +49,16 @@ class DelegateRightPayload:
     errors: Optional[List[Error]] = None
 
 
+@strawberry.input
+class RevokeRightInput:
+    right: strawberry.ID
+
+
+@strawberry.type
+class RevokeRightPayload:
+    errors: Optional[List[Error]] = None
+
+
 @strawberry.type
 class RightMutations:
     @strawberry.mutation(permission_classes=[IsAuthenticated])
@@ -64,7 +74,9 @@ class RightMutations:
             parent_right = info.context.db_session.get(DBRight, parent_id)
             new_right = DBRight(name=i.name, community_id=info.context.community_id)
             new_right.parent_right = parent_right
-            new_right.permissions = reduce(lambda a, b: a | b, i.permissions)
+            new_right.permissions = reduce(
+                lambda a, b: a | b, i.permissions, PermissionsFlag(0)
+            )
             info.context.db_session.add(new_right)
             info.context.db_session.flush()
             try:
@@ -83,3 +95,27 @@ class RightMutations:
                 errors.append(DatabaseError())
                 info.context.db_session.rollback()
         return DelegateRightPayload(new_rights=new_rights, errors=errors)
+
+    @strawberry.mutation(permission_classes=[IsAuthenticated])
+    def revoke(self, info: Info, input: List[RevokeRightInput]) -> RevokeRightPayload:
+        errors: List[Error] = []
+        user = info.context.active_user
+        for i in input:
+            right = info.context.db_session.get(
+                DBRight, gql_id_to_table_id_unchecked(i.right)
+            )
+            if not right:
+                errors.append(NotFound())
+                continue
+            try:
+                oso.authorize(user, "revoke", right)
+            except AuthorizationError as err:
+                errors.append(Unauthorized())
+                continue
+            info.context.db_session.delete(right)
+            try:
+                info.context.db_session.commit()
+            except:
+                errors.append(DatabaseError())
+                info.context.db_session.rollback()
+        return RevokeRightPayload(errors=errors)

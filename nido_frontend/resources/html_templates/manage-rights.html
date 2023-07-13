@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}Manage Rights{% endblock %}
+{% block body_id %}manage-rights{% endblock %}
+{% block body %}
+<main>
+  <h1>{{self.title()}}</h1>
+  <h2>Current Rights</h2>
+  <table>
+    <thead><tr>
+      <th>Name</th>
+      <th>Granted to</th>
+      <th></th>
+    </tr></thead>
+    {% for right in rights %}
+    <tr>
+      <td rowspan="1">{{right.name}}</td>
+      <td>
+        {%- for group in right.groups -%}
+          {{group.name}}{% if not loop.last %}<br/>{% endif %}
+        {%- endfor -%}
+      </td>
+      <td>
+        {%- if right.can_revoke -%}
+        <form method="post">
+          <input type="hidden" name="right-id" value="{{right.id}}" />
+          <button>Revoke</button>
+        </form>
+        {%- endif -%}
+      </td>
+    </tr>
+    {% endfor %}
+  </table>
+  <h2>Actions</h2>
+  <ul>
+    <li><a href="{{url_for('.new_right')}}">Create new right</a></li>
+  </ul>
+</main>
+{% endblock %}
