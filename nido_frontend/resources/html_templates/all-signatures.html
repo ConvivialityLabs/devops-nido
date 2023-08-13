@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}Signed Documents{% endblock %}
+{% block body_id %}all-signatures{% endblock %}
+{% block body %}
+<main>
+  <h1>{{self.title()}}</h1>
+  <table>
+    <thead><tr>
+      <th>Resident Name</th>
+      <th>Document Name</th>
+      <th>Date Signed</th>
+      <th></th>
+    </tr></thead>
+    {% for doc in docs %}
+    <tr>
+      <td rowspan="1">{{doc.user.full_name}}</td>
+      <td>{{doc.name}}</td>
+      <td>{{doc.signature_date}}</td>
+      <td>
+        <a href="{{url_for(".view_signed", doc_name=doc.name)}}">View</a>
+      </td>
+    </tr>
+    {% endfor %}
+    {% if docs|count == 0 %}
+    <tr>
+      <td colspan="4">Empty</td>
+    </tr>
+    {% endif %}
+  </table>
+</main>
+{% endblock %}
+

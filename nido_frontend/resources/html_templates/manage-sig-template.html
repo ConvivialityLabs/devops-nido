@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}Manage {{doc.name}}{% endblock %}
+{% block body_id %}manage-sig-template{% endblock %}
+{% block body %}
+<main>
+  <h1>{{self.title()}}</h1>
+  <h2>View</h2>
+  <object type="application/pdf" data="{{b64url}}"></object>
+  <h2>Modify</h2>
+  <h3>Rename</h3>
+  <form method="post">
+    <input type="hidden" name="action" value="rename"/>
+    <input type="hidden" name="doc-id" value="{{doc.id}}"/>
+    <label>Document Name:<input type="text" name="new-name" value="{{
+      doc.name}}" required></label>
+    <button>Rename</button>
+  </form>
+  <h3>Delete</h3>
+  <p>Note: Deleting a unsigned document will cancel any active requests to sign
+  it, but will not delete any already signed documents based off of it.</p>
+  <form method="post">
+    <input type="hidden" name="action" value="delete"/>
+    <input type="hidden" name="doc-id" value="{{doc.id}}"/>
+    <button>Delete</button>
+  </form>
+</main>
+{% endblock %}

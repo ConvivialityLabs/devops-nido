@@ -113,12 +113,20 @@ nav#main-menu {
       content: url('/static/icons/docs.svg');
     }
 
+    &[href="/signatures/"]:before {
+      content: url('/static/icons/sign.svg');
+    }
+
     &[href="/admin/"]:before {
       content: url('/static/icons/admin.svg');
     }
 
     &[href="/admin/dashboard/"]:before {
       content: url('/static/icons/dashboard.svg');
+    }
+
+    &[href="/admin/manage-signatures/"]:before {
+      content: url('/static/icons/sign.svg');
     }
 
     &[href="/admin/manage-groups/"]:before {

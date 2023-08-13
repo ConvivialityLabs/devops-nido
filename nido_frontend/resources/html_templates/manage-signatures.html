@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block title %}Manage Signatures{% endblock %}
+{% block body_id %}manage-signatures{% endblock %}
+{% block body %}
+<main>
+  <h1>{{self.title()}}</h1>
+  <h2>Unsigned Document Templates</h2>
+  <table>
+    <thead><tr>
+      <th>Document Name</th>
+      <th></th>
+    </tr></thead>
+    {% for doc in docs %}
+    <tr>
+      <td rowspan="1">{{doc.name}}</td>
+      <td>
+        <a href="{{url_for(".manage_template", name=doc.name)}}">Manage</a>
+      </td>
+    </tr>
+    {% endfor %}
+    {% if docs|count == 0 %}
+    <tr>
+      <td colspan="2">Empty</td>
+    </tr>
+    {% endif %}
+  </table>
+  <h2>Pending Signatures</h2>
+  <table>
+    <thead><tr>
+      <th>Person</th>
+      <th>Document</th>
+    </tr></thead>
+    {% for sig in pending_sigs %}
+    <tr>
+      <td>{{sig.user.full_name}}</td>
+      <td>{{sig.signature_template.name}}</td>
+    </tr>
+    {% endfor %}
+    {% if pending_sigs|count == 0 %}
+    <tr>
+      <td colspan="2">None</td>
+    </tr>
+    {% endif %}
+  </table>
+  <h2>Actions</h2>
+  <ul>
+    <li><a href="{{url_for(".upload_document")}}">Upload new unsigned document</a></li>
+    <li><a href="{{url_for(".assign_signatures")}}">Assign document for signature</a></li>
+    <li><a href="{{url_for(".view_all_signed")}}">View all signed documents</a></li>
+  </ul>
+</main>
+{% endblock %}

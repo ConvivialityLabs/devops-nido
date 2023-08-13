@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block title %}View Signed Document{% endblock %}
+{% block body_id %}view-signed-doc{% endblock %}
+{% block body %}
+<main>
+  <h1>{{self.title()}}</h1>
+  <h2>{{doc.name}}</h2>
+  <object type="application/pdf" data="{{b64url}}"></object>
+</main>
+{% endblock %}
+

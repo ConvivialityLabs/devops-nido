@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block title %}My Signatures{% endblock %}
+{% block body_id %}signatures{% endblock %}
+{% block body %}
+<main>
+  <h1>{{self.title()}}</h1>
+  {% if pending_sigs|count != 0 %}
+  <h2>Documents Needing Signature</h2>
+  <table>
+    <thead><tr>
+      <th>Document</th>
+      <th></th>
+    </tr></thead>
+    {% for sig in pending_sigs %}
+    <tr>
+      <td>{{sig.signature_template.name}}</td>
+      <td><a href="{{
+          url_for(".sign_doc",
+          doc_name=sig.signature_template.name)
+      }}">Sign</a></td>
+    </tr>
+    {% endfor %}
+  </table>
+  {% endif %}
+  <h2>Actions</h2>
+  <ul>
+    <li><a href="{{url_for(".view_docs")}}">View Signed Documents</a></li>
+  </ul>
+</main>
+{% endblock %}

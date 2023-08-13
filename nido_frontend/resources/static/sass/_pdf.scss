@@ -1,0 +1,13 @@
+object[type="application/pdf"] {
+  display: block;
+  margin: 0 auto;
+  width: 80%;
+  height: 70%;
+}
+
+#upload-unsigned canvas {
+  display: block;
+  margin: 5px auto;
+  border: 1px solid black;
+  width: 80%;
+}

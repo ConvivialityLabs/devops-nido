@@ -20,6 +20,7 @@ import secrets
 from typing import Any
 
 from flask import Flask, Request, Response, current_app, g, render_template, session
+from pyhanko.sign import signers, timestamps
 from sqlalchemy import Engine, create_engine
 from sqlalchemy.orm import scoped_session, sessionmaker
 from strawberry import Schema
@@ -37,6 +38,7 @@ from .household import bp as household_bp
 from .household import index as household_index
 from .report_issues import bp as issues_bp
 from .resident_directory import bp as rd_bp
+from .signatures import bp as signing_bp
 
 dev_issue_list = [
     Issue(
@@ -163,6 +165,34 @@ def create_app(testing_config=None):
     def create_gql_client():
         g.gql_client = gql_client
 
+    doc_signing_key = app.config.get("DOC_SIGNING_KEY", None)
+    doc_signing_key_pass = app.config.get("DOC_SIGNING_KEY_PASS", None)
+    doc_signing_cert = app.config.get("DOC_SIGNING_CERT", None)
+
+    if doc_signing_key is None or doc_signing_cert is None:
+        pass
+    else:
+        try:
+            cms_signer = signers.SimpleSigner.load(
+                doc_signing_key, doc_signing_cert, key_passphrase=doc_signing_key_pass
+            )
+        except:
+            pass
+        else:
+
+            @app.before_request
+            def create_cms_signer():
+                g.cms_signer = cms_signer
+
+    doc_signing_tsa_url = app.config.get("DOC_SIGNING_TSA_URL", None)
+
+    if doc_signing_tsa_url:
+        tsa_client = timestamps.HTTPTimeStamper(doc_signing_tsa_url)
+
+        @app.before_request
+        def create_tsa_client():
+            g.tsa_client = tsa_client
+
     app.register_blueprint(admin_bp, url_prefix="/admin")
 
     app.register_blueprint(auth_bp)
@@ -171,6 +201,7 @@ def create_app(testing_config=None):
     app.register_blueprint(household_bp, url_prefix="/my-household")
     app.register_blueprint(issues_bp, url_prefix="/report-issues")
     app.register_blueprint(rd_bp, url_prefix="/resident-directory")
+    app.register_blueprint(signing_bp, url_prefix="/signatures")
     app.add_url_rule("/", endpoint="index", view_func=household_index)
 
     if app.debug:

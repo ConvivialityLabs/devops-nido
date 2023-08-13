@@ -422,6 +422,68 @@ class DBEmailContact(DBContactMethod):
     }
 
 
+class DBSignatureTemplate(Base, DBNode):
+    __tablename__ = "signature_template"
+    __table_args__ = (
+        sql_schema.UniqueConstraint("id", "community_id"),
+        sql_schema.UniqueConstraint("community_id", "name"),
+    )
+
+    community_id: Mapped[int] = mapped_column(
+        ForeignKey("community.id", ondelete="CASCADE")
+    )
+
+    name: Mapped[str]
+    data: Mapped[bytes]
+    signature_field_name: Mapped[str]
+
+    community: Mapped[DBCommunity] = relationship(viewonly=True, init=False, repr=False)
+
+
+class DBSignatureAssignment(Base):
+    __tablename__ = "signature_assignment"
+    __table_args__ = (
+        sql_schema.ForeignKeyConstraint(
+            ["template_id", "community_id"],
+            ["signature_template.id", "signature_template.community_id"],
+            ondelete="CASCADE",
+        ),
+    )
+
+    community_id: Mapped[int] = mapped_column(
+        ForeignKey("community.id", ondelete="CASCADE"), primary_key=True
+    )
+    template_id: Mapped[int] = mapped_column(primary_key=True, init=False)
+    user_id: Mapped[int] = mapped_column(
+        ForeignKey("user.id", ondelete="CASCADE"), primary_key=True
+    )
+
+    signature_template: Mapped[DBSignatureTemplate] = relationship(
+        viewonly=True, init=False, repr=False
+    )
+    user: Mapped[DBUser] = relationship(viewonly=True, init=False, repr=False)
+
+
+class DBSignatureRecord(Base, DBNode):
+    __tablename__ = "signature_record"
+    __table_args__ = (
+        sql_schema.UniqueConstraint("id", "community_id"),
+        sql_schema.UniqueConstraint("user_id", "name"),
+    )
+
+    community_id: Mapped[int] = mapped_column(
+        ForeignKey("community.id", ondelete="CASCADE")
+    )
+    user_id: Mapped[int] = mapped_column(ForeignKey("user.id", ondelete="RESTRICT"))
+
+    name: Mapped[str]
+    data: Mapped[bytes]
+    signature_date: Mapped[datetime.date]
+
+    community: Mapped[DBCommunity] = relationship(viewonly=True, init=False, repr=False)
+    user: Mapped[DBUser] = relationship(viewonly=True, init=False, repr=False)
+
+
 class DBDirFolder(Base, DBNode):
     __tablename__ = "directory_folder"
     __table_args__ = (

@@ -1,0 +1,240 @@
+{% extends "base.html" %}
+{% block title %}Upload Unsigned Document {% endblock %}
+{% block body_id %}upload-unsigned{% endblock %}
+{% block body %}
+<main>
+  <h1>{{self.title()}}</h1>
+  <p>Use the button below to select the PDF file that you want other people to sign. Then select the page for the signature and indicate the area where the signature should go.</p>
+  <form id="upload-unsigned-form" method="post" enctype="multipart/form-data">
+    <input type="hidden" name="page" />
+    <input type="hidden" name="x1" />
+    <input type="hidden" name="y1" />
+    <input type="hidden" name="x2" />
+    <input type="hidden" name="y2" />
+  </form>
+  <input id="upload-unsigned-file-input" name="pdf-file" form="upload-unsigned-form" type="file" accept="application/pdf" />
+</main>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.9.179/pdf.js"></script>
+<script>
+  pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.9.179/pdf.worker.min.js";
+
+  let canvasPDF = null;
+  let canvasOverlay = null;
+  let canvasScale = 1;
+
+  let pdfCurrentPageNum = 1;
+  let selectionCoords = {beginning: null, end: null};
+
+  const inputElement = document.getElementById("upload-unsigned-file-input")
+
+
+  function resetCoords() {
+    selectionCoords.beginning = null;
+    selectionCoords.end = null;
+    for (const ele of inputElement.form.getElementsByTagName("button")) {
+      ele.remove();
+    }
+  }
+
+
+  function repaintOverlay() {
+    const context = canvasOverlay.getContext("2d");
+    context.clearRect(0, 0, canvasOverlay.width, canvasOverlay.height);
+    context.drawImage(canvasPDF, 0, 0);
+    if (selectionCoords.beginning === null) return;
+    context.beginPath();
+    context.arc(
+      selectionCoords.beginning.x * canvasScale,
+      canvasPDF.height - selectionCoords.beginning.y * canvasScale,
+      5,
+      0,
+      2 * Math.PI
+    );
+    context.fill();
+    if (selectionCoords.end === null) return;
+    context.fillStyle = "rgba(0, 0, 0, 0.5)";
+    context.fillRect(
+      selectionCoords.beginning.x * canvasScale,
+      canvasPDF.height - selectionCoords.beginning.y * canvasScale,
+      selectionCoords.end.x * canvasScale
+      - selectionCoords.beginning.x * canvasScale,
+      selectionCoords.beginning.y * canvasScale
+      - selectionCoords.end.y * canvasScale,
+    );
+    context.fillStyle = "black";
+    context.beginPath();
+    context.arc(
+      selectionCoords.end.x * canvasScale,
+      canvasPDF.height - selectionCoords.end.y * canvasScale,
+      5,
+      0,
+      2 * Math.PI
+    );
+    context.fill();
+  }
+
+
+  function repaintPDF(page) {
+    const context = canvasPDF.getContext("2d");
+
+    const viewport = page.getViewport({ scale: 1, });
+    canvasScale = canvasOverlay.clientWidth / viewport.width;
+    canvasOverlay.width = canvasOverlay.clientWidth;
+    canvasOverlay.height = viewport.height * canvasScale;
+    canvasPDF.width = canvasOverlay.clientWidth;
+    canvasPDF.height = viewport.height * canvasScale;
+
+    const scaledViewport = page.getViewport({ scale: canvasScale, });
+    const renderContext = {
+      canvasContext: context,
+      viewport: scaledViewport,
+    };
+    page.render(renderContext).promise.then(repaintOverlay);
+  };
+
+
+  function getMousePosition(e) {
+    let clientX, clientY;
+    if (e instanceof MouseEvent) {
+      clientX = e.clientX;
+      clientY = e.clientY;
+    } else {
+      const tEvent = e.touches[0];
+      clientX = tEvent.clientX;
+      clientY = tEvent.clientY;
+    }
+    const rect = canvasOverlay.getBoundingClientRect();
+    const ret = {
+      x: clientX - rect.left,
+      y: rect.bottom - clientY,
+    };
+    return ret;
+  }
+
+
+  function canvasMouseUp(e) {
+    let coords = getMousePosition(e);
+    canvasOverlay.onmousemove = null;
+    canvasOverlay.onmouseup = null;
+    selectionCoords.end = {
+      x: coords.x / canvasScale,
+      y: coords.y / canvasScale
+    };
+    inputElement.form.page.value = pdfCurrentPageNum;
+    inputElement.form.x1.value = Math.round(selectionCoords.beginning.x);
+    inputElement.form.y1.value = Math.round(selectionCoords.beginning.y);
+    inputElement.form.x2.value = Math.round(coords.x / canvasScale);
+    inputElement.form.y2.value = Math.round(coords.y / canvasScale);
+    submitButton = document.createElement("button");
+    submitButton.appendChild(document.createTextNode("Upload"));
+    inputElement.form.insertAdjacentElement("beforeend", submitButton);
+    repaintOverlay();
+  }
+
+
+  function canvasMouseMove(e) {
+    let coords = getMousePosition(e);
+    selectionCoords.end = {
+      x: coords.x / canvasScale,
+      y: coords.y / canvasScale
+    };
+    canvasOverlay.onmouseup = canvasMouseUp;
+    repaintOverlay();
+  }
+
+
+  function canvasMouseDown(e) {
+    let coords = getMousePosition(e);
+    if (selectionCoords.beginning === null || selectionCoords.end !== null) {
+      resetCoords();
+      selectionCoords.beginning = {
+        x: coords.x / canvasScale,
+        y: coords.y / canvasScale
+      };
+      canvasOverlay.onmouseup = (e) => {canvasOverlay.onmousemove = null;}
+    } else {
+      selectionCoords.end = {
+        x: coords.x / canvasScale,
+        y: coords.y / canvasScale
+      };
+      canvasOverlay.onmouseup = canvasMouseUp;
+    }
+    canvasOverlay.onmousemove = canvasMouseMove;
+    repaintOverlay();
+  }
+
+
+  function displayPdf(pdf) {
+    canvasPDF = document.createElement("canvas");
+    canvasOverlay = document.createElement("canvas");
+    inputElement.insertAdjacentElement("afterend", canvasOverlay);
+
+    canvasOverlay.onmousedown = canvasMouseDown;
+
+    document.defaultView.onresize = () => {
+      pdf.getPage(pdfCurrentPageNum).then(repaintPDF);
+    };
+
+    if (pdf.numPages > 1) {
+      const prevButton = document.createElement("button");
+      prevButton.appendChild(document.createTextNode("Previous Page"));
+      prevButton.disabled = true;
+
+      const nextButton = document.createElement("button");
+      nextButton.appendChild(document.createTextNode("Next Page"));
+
+      function pageBack() {
+        if (pdfCurrentPageNum <= 1) {
+          pdfCurrentPageNum = 1;
+          return;
+        }
+        pdfCurrentPageNum--;
+        resetCoords();
+        pdf.getPage(pdfCurrentPageNum).then(repaintPDF);
+        nextButton.disabled = false;
+        if (pdfCurrentPageNum === 1) {
+          prevButton.disabled = true;
+        }
+      }
+
+      function pageForward() {
+        if (pdfCurrentPageNum >= pdf.numPages) {
+          pdfCurrentPageNum = pdf.numPages;
+          return;
+        }
+        pdfCurrentPageNum++;
+        resetCoords();
+        pdf.getPage(pdfCurrentPageNum).then(repaintPDF);
+        prevButton.disabled = false;
+        if (pdfCurrentPageNum === pdf.numPages) {
+          nextButton.disabled = true;
+        }
+      }
+
+      prevButton.onclick = pageBack;
+      nextButton.onclick = pageForward;
+
+      inputElement.insertAdjacentElement("afterend", prevButton)
+      prevButton.insertAdjacentElement("afterend", nextButton)
+    }
+
+    pdf.getPage(pdfCurrentPageNum).then(repaintPDF);
+  };
+
+
+  function loadSelectedPdf(e) {
+    const file = e.target.files[0];
+    const fileReader = new FileReader();
+    fileReader.onload = function() {
+      const typedarray = new Uint8Array(this.result);
+
+      const loadingTask = pdfjsLib.getDocument(typedarray);
+      loadingTask.promise.then(displayPdf);
+    };
+    fileReader.readAsArrayBuffer(file);
+  }
+
+
+  inputElement.onchange = loadSelectedPdf;
+</script>
+{% endblock %}
