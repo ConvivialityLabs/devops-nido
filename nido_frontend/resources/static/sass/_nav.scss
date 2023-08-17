@@ -1,8 +1,11 @@
 body:not(#login) main {
-  margin: 0 0 0 300px;
-  padding: 20px 40px;
   box-sizing: border-box;
+  padding: 20px 40px;
   height: 100%;
+}
+
+nav#main-menu + main {
+  margin: 0 0 0 300px;
 
   @media(max-width:699px) {
     margin-left: 50px;
@@ -123,6 +126,10 @@ nav#main-menu {
 
     &[href="/admin/dashboard/"]:before {
       content: url('/static/icons/dashboard.svg');
+    }
+
+    &[href="/admin/manage-moveins/"]:before {
+      content: url('/static/icons/ppl-change.svg');
     }
 
     &[href="/admin/manage-signatures/"]:before {

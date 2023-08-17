@@ -19,6 +19,12 @@ from enum import Enum, Flag, auto
 import strawberry
 
 
+@strawberry.enum
+class ApplicationStatus(Enum):
+    AWAITING_APPLICANT_SIGNATURE = auto()
+    AWAITING_MOVEIN = auto()
+
+
 class BillingFrequency(Enum):
     YEARLY = auto()
     MONTHLY = auto()

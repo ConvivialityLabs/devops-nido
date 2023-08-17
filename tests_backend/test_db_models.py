@@ -9,6 +9,7 @@ from nido_backend.db_models import (
     DBEmailContact,
     DBGroup,
     DBGroupMembership,
+    DBProspectiveResident,
     DBResidenceOccupancy,
     DBRight,
 )
@@ -96,5 +97,18 @@ def test_right_permits_hybrid_method_on_class(db_session):
 def test_directory_folder_name_cannot_contain_underscore(db_session):
     invalid = DBDirFolder(name="invalid_name", community_id=1)
     db_session.add(invalid)
+    with pytest.raises(IntegrityError):
+        db_session.commit()
+
+
+def test_prospective_resident_foreign_key(db_session):
+    prospie = DBProspectiveResident(
+        community_id=1,
+        residence_id=5,
+        sponsor_id=1,
+        personal_name="Test",
+        family_name="Example",
+    )
+    db_session.add(prospie)
     with pytest.raises(IntegrityError):
         db_session.commit()

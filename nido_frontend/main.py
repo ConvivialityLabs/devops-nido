@@ -30,6 +30,7 @@ from nido_backend.gql_query import Issue
 from nido_backend.gql_schema import SchemaContext, create_schema
 
 from .admin_blueprint import bp as admin_bp
+from .apply import bp as apply_bp
 from .authentication import bp as auth_bp
 from .authentication import login_required
 from .billing import bp as billing_bp
@@ -196,6 +197,7 @@ def create_app(testing_config=None):
     app.register_blueprint(admin_bp, url_prefix="/admin")
 
     app.register_blueprint(auth_bp)
+    app.register_blueprint(apply_bp, url_prefix="/apply")
     app.register_blueprint(billing_bp, url_prefix="/billing")
     app.register_blueprint(documents_bp, url_prefix="/documents")
     app.register_blueprint(household_bp, url_prefix="/my-household")

@@ -35,11 +35,12 @@ from .db_models import (
     DBGroup,
     DBGroupMembership,
     DBNode,
+    DBProspectiveResident,
     DBResidence,
     DBRight,
     DBUser,
 )
-from .enums import PermissionsFlag
+from .enums import ApplicationStatus, PermissionsFlag
 from .gql_helpers import encode_gql_id, recursive_eager_load
 from .gql_permissions import IsAuthenticated
 
@@ -164,6 +165,15 @@ class Community(Node[DBCommunity]):
     def users(self) -> Optional[Connection["User"]]:
         return Connection(edges=[Edge(node=User(db=u)) for u in self.db.users])
 
+    @strawberry.field
+    def prospective_residents(self) -> Optional[Connection["ProspectiveResident"]]:
+        return Connection(
+            edges=[
+                Edge(node=ProspectiveResident(db=pr))
+                for pr in self.db.prospective_residents
+            ]
+        )
+
 
 @strawberry.type
 class Residence(Node[DBResidence]):
@@ -224,6 +234,39 @@ class Issue:
     is_open: bool
     description: str
     status_msg: Optional[str] = None
+
+
+@strawberry.type
+class ProspectiveResident(Node[DBProspectiveResident]):
+    dbtype = DBProspectiveResident
+
+    @strawberry.field
+    def personal_name(self) -> str:
+        return self.db.personal_name
+
+    @strawberry.field
+    def family_name(self) -> str:
+        return self.db.family_name
+
+    @strawberry.field
+    def full_name(self) -> str:
+        return self.db.full_name
+
+    @strawberry.field
+    def collation_name(self) -> str:
+        return self.db.collation_name
+
+    @strawberry.field
+    def scheduled_occupancy_start_date(self) -> Optional[datetime.date]:
+        return self.db.scheduled_occupancy_start_date
+
+    @strawberry.field
+    def application_status(self) -> ApplicationStatus:
+        return self.db.application_status
+
+    @strawberry.field
+    def residence(self) -> Residence:
+        return Residence(db=self.db.residence)
 
 
 @strawberry.type

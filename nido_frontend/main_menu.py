@@ -42,6 +42,7 @@ def get_main_menu(is_admin: bool):
 def get_admin_menu():
     menu_list = []
     menu_list.append(MenuLink("Dashboard", url_for("admin.admin_dashboard.index")))
+    menu_list.append(MenuLink("Manage Move-ins", url_for("admin.admin_moveins.index")))
     menu_list.append(
         MenuLink("Manage Signatures", url_for("admin.admin_signatures.index"))
     )

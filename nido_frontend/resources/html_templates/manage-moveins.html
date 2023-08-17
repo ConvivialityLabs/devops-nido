@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title %}Manage Move-ins{% endblock %}
+{% block body_id %}manage-moveins{% endblock %}
+{% block body %}
+<main>
+  <h1>{{self.title()}}</h1>
+  <h2>Prospective Residents</h2>
+  <table>
+    <thead><tr>
+      <th>Name</th>
+      <th>Address</th>
+      <th>Status</th>
+      <th></th>
+    </tr></thead>
+    {%- for pr in prospective_residents %}
+    <tr>
+      <td rowspan="1">{{pr.full_name}}</td>
+      <td>
+          {{- pr.residence.street -}}
+          {% if pr.residence.unit_no %} {{pr.residence.unit_no}}{% endif %}
+      </td>
+      <td>{{pr.application_status.name}}</td>
+      <td>
+        <a href="{{url_for(".prospect_details", id=pr.id)}}">View Details</a>
+      </td>
+    </tr>
+    {% endfor %}
+    {% if prospective_residents|count == 0 %}
+    <tr>
+      <td colspan="4">None</td>
+    </tr>
+    {% endif %}
+  </table>
+  <h2>Actions</h2>
+  <ul>
+    <li><a href="{{url_for('.add_prospie')}}">Register New Prospective Resident</a></li>
+    <li><a href="{{url_for('.confirm_movein')}}">Confirm Resident Move-in</a></li>
+    <li><a href="{{url_for('.confirm_moveout')}}">Confirm Resident Move-out</a></li>
+  </ul>
+</main>
+{% endblock %}

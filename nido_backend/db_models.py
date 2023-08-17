@@ -34,7 +34,12 @@ from sqlalchemy.orm import (
     relationship,
 )
 
-from .enums import BillingFrequency, ContactMethodType, PermissionsFlag
+from .enums import (
+    ApplicationStatus,
+    BillingFrequency,
+    ContactMethodType,
+    PermissionsFlag,
+)
 
 
 class BooleanFlag(sql_types.TypeDecorator):
@@ -104,11 +109,17 @@ class DBCommunity(Base, DBNode):
         init=False,
         repr=False,
     )
+    prospective_residents: Mapped[List["DBProspectiveResident"]] = relationship(
+        back_populates="community", init=False, repr=False
+    )
 
 
 class DBResidence(Base, DBNode):
     __tablename__ = "residence"
-    __table_args__ = (sql_schema.UniqueConstraint("id", "community_id"),)
+    __table_args__ = (
+        sql_schema.UniqueConstraint("id", "community_id"),
+        sql_schema.CheckConstraint("on_market = true OR available_starting IS NULL"),
+    )
 
     community_id: Mapped[int] = mapped_column(
         ForeignKey("community.id", ondelete="CASCADE")
@@ -119,6 +130,8 @@ class DBResidence(Base, DBNode):
     locality: Mapped[str]
     postcode: Mapped[str]
     region: Mapped[str]
+    on_market: Mapped[bool] = mapped_column(default=False)
+    available_starting: Mapped[Optional[datetime.date]] = mapped_column(default=None)
 
     community: Mapped[DBCommunity] = relationship(
         back_populates="residences", init=False, repr=False
@@ -126,6 +139,12 @@ class DBResidence(Base, DBNode):
     occupants: Mapped[List["DBUser"]] = relationship(
         secondary="residence_occupancy",
         back_populates="residences",
+        init=False,
+        repr=False,
+    )
+    prospective_occupants: Mapped[List["DBProspectiveResident"]] = relationship(
+        foreign_keys="DBProspectiveResident.residence_id",
+        back_populates="residence",
         init=False,
         repr=False,
     )
@@ -164,6 +183,8 @@ class DBResidenceOccupancy(Base):
     user_id: Mapped[int] = mapped_column(
         ForeignKey("user.id", ondelete="RESTRICT"), primary_key=True
     )
+    date_begun: Mapped[Optional[datetime.date]] = mapped_column(default=None)
+    date_ended: Mapped[Optional[datetime.date]] = mapped_column(default=None)
 
 
 class DBUser(Base, DBNode):
@@ -177,6 +198,13 @@ class DBUser(Base, DBNode):
     residences: Mapped[List[DBResidence]] = relationship(
         secondary="residence_occupancy",
         back_populates="occupants",
+        init=False,
+        repr=False,
+    )
+    sponsoring_applicants: Mapped[List["DBProspectiveResident"]] = relationship(
+        primaryjoin="DBUser.id == DBProspectiveResident.sponsor_id",
+        foreign_keys="DBProspectiveResident.sponsor_id",
+        back_populates="sponsor",
         init=False,
         repr=False,
     )
@@ -198,6 +226,82 @@ class DBUser(Base, DBNode):
         back_populates="custom_members",
         init=False,
         repr=False,
+    )
+
+
+class DBProspectiveResident(Base, DBNode):
+    __tablename__ = "prospective_resident"
+    __table_args__ = (
+        sql_schema.UniqueConstraint("id", "community_id"),
+        sql_schema.ForeignKeyConstraint(
+            ["residence_id", "community_id"],
+            ["residence.id", "residence.community_id"],
+            ondelete="CASCADE",
+        ),
+        # While we never join with residence_occupancy directly,
+        # we do want to make sure a sponsor can only sponsor for a
+        # residence the sponsor occupies.
+        sql_schema.ForeignKeyConstraint(
+            ["sponsor_id", "residence_id", "community_id"],
+            [
+                "residence_occupancy.user_id",
+                "residence_occupancy.residence_id",
+                "residence_occupancy.community_id",
+            ],
+            ondelete="CASCADE",
+        ),
+        sql_schema.ForeignKeyConstraint(
+            ["template_id", "community_id"],
+            ["signature_template.id", "signature_template.community_id"],
+            ondelete="CASCADE",
+        ),
+    )
+
+    community_id: Mapped[int] = mapped_column(
+        ForeignKey("community.id", ondelete="CASCADE")
+    )
+    residence_id: Mapped[int] = mapped_column()
+    user_self_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("user.id", ondelete="CASCADE"), default=None
+    )
+    sponsor_id: Mapped[Optional[int]] = mapped_column(default=None)
+    template_id: Mapped[Optional[int]] = mapped_column(default=None)
+
+    personal_name: Mapped[str] = mapped_column(kw_only=True)
+    family_name: Mapped[str] = mapped_column(kw_only=True)
+    application_status: Mapped[ApplicationStatus] = mapped_column(
+        default=ApplicationStatus.AWAITING_MOVEIN
+    )
+    scheduled_occupancy_start_date: Mapped[Optional[datetime.date]] = mapped_column(
+        default=None
+    )
+
+    full_name: Mapped[str] = column_property(personal_name + " " + family_name)
+    collation_name: Mapped[str] = column_property(family_name + ", " + personal_name)
+
+    community: Mapped[DBCommunity] = relationship(
+        back_populates="prospective_residents", init=False, repr=False
+    )
+    residence: Mapped[DBResidence] = relationship(
+        foreign_keys=residence_id,
+        back_populates="prospective_occupants",
+        init=False,
+        repr=False,
+    )
+    user_self: Mapped[Optional[DBUser]] = relationship(
+        foreign_keys=user_self_id,
+        init=False,
+        repr=False,
+    )
+    sponsor: Mapped[Optional[DBUser]] = relationship(
+        primaryjoin="DBUser.id == DBProspectiveResident.sponsor_id",
+        foreign_keys=sponsor_id,
+        back_populates="sponsoring_applicants",
+        init=False,
+        repr=False,
+    )
+    signature_template: Mapped[Optional["DBSignatureTemplate"]] = relationship(
+        viewonly=True, init=False, repr=False
     )
 
 

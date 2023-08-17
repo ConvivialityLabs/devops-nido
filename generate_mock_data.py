@@ -13,6 +13,7 @@ from nido_backend.db_models import (
     DBDirFolder,
     DBEmailContact,
     DBGroup,
+    DBProspectiveResident,
     DBResidence,
     DBRight,
     DBUser,
@@ -4291,6 +4292,15 @@ def seed_db(db_session, do_full_seed=False):
         db_session.add(residence)
 
     db_session.commit()
+
+    prospect = DBProspectiveResident(
+        community_id=1,
+        residence_id=3,
+        personal_name="John",
+        family_name="Doe",
+    )
+
+    db_session.add(prospect)
 
     bod_numbers = [
         [0, 1, 2, 3, 4, -1],

@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block title %}Confirm {{action}}{% endblock %}
+{% block body_id %}confirm-movement{% endblock %}
+{% block body %}
+<main>
+  <h1>{{self.title()}}</h1>
+  <form method="post" id="{{self.body_id() + "-form"}}">
+    <label>{{action}} Date:<input type="date" name="date" value="
+      {{- default_date.isoformat()}}" required></label>
+    <button>Confirm</button>
+  </form>
+  <table>
+    <thead><tr>
+      <th>Name</th>
+      <th></th>
+    </tr></thead>
+    {% for user in users %}
+    <tr>
+      <td>
+        <label for="{{
+            self.body_id() + "-form-input-" + user.id|string
+            }}">{{user.collation_name -}}
+        </label>
+      </td>
+      <td>
+        <input form="{{self.body_id() + "-form"}}" id="{{
+            self.body_id() + "-form-input-" + user.id|string
+            }}" type="radio" name="user-id" value="{{user.id}}"/>
+      </td>
+    </tr>
+    {% endfor %}
+  </table>
+</main>
+{% endblock %}

@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %}Register Prospective Resident{% endblock %}
+{% block body_id %}register-prospective{% endblock %}
+{% block body %}
+<main>
+  <h1>{{self.title()}}</h1>
+  <h2>Prospective Resident Info</h2>
+  <form method="post" id="{{self.body_id() + "-form" }}">
+    <label>First Name:<input name="personal-name" required></label>
+    <label>Last Name:<input name="family-name" required></label>
+    <label>Planned Move-in Date:<input type="date" name="begin-date"></label>
+    {%- if sig_templates|count > 0 %}
+    <label>Require Document Signature:<select name="doc-id">
+      <option value="">None</option>
+      {% for s in sig_templates %}
+        <option value="{{s.id}}">{{s.name}}</option>
+      {% endfor %}
+    </select></label>
+    {%- endif %}
+    <button>Create</button>
+  </form>
+  <h2>Prospective Resident Residence</h2>
+  <table>
+    <thead><tr>
+      <th>Address</th>
+      <th></th>
+    </tr></thead>
+    {%- for listing in residences %}
+    <tr>
+      <td>
+        <label for="{{
+            self.body_id() + "-form-residence-input-" + listing.id
+            }}">
+          {{- listing.street -}}
+          {% if listing.unit_no %} {{listing.unit_no}}{% endif %}
+        </label>
+      </td>
+      <td>
+        <input form="{{self.body_id() + "-form" }}" required
+            id="{{self.body_id() + "-form-residence-input-" + listing.id
+            }}" type="radio" name="residence-id" value="{{listing.id}}"/>
+      </td>
+    </tr>
+    {% endfor %}
+  </table>
+</main>
+{% endblock %}
