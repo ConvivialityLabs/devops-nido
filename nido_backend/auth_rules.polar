@@ -11,18 +11,17 @@ resource Group {
     "delete" if "manager";
 }
 
-has_permission(user: User, "create", _group: Group) if
-    group in user.groups and
-    group.right != nil and
-    group.right.permits(Permissions.CREATE_GROUPS);
+has_permission(user: User, "create", group: Group) if
+    associate in user.self_associates and
+    associate matches {community_id: group.community_id};
 
 has_role(user: User, "member", group: Group) if
     member in group.custom_members and
-    member matches {id: user.id};
+    member matches {user_id: user.id};
 
 has_role(user: User, "manager", group: Group) if
     member in group.managed_by.custom_members and
-    member matches {id: user.id};
+    member matches {user_id: user.id};
 
 resource Right {
     permissions = ["delegate", "revoke"];
@@ -33,11 +32,11 @@ resource Right {
 }
 
 has_role(user: User, "possessor", right: Right) if
-    group in user.groups and
+    has_role(user, "member", group) and
     group matches {right_id: right.id};
 
 has_role(user: User, "delegator", right: Right) if
-    group in user.groups and
+    has_role(user, "member", group) and
     group matches {right_id: right.parent_right_id} and
     right.parent_right.permits(Permissions.CAN_DELEGATE) and
     right.parent_right.permits(right.permissions);

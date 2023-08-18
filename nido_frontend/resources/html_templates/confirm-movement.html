@@ -14,18 +14,18 @@
       <th>Name</th>
       <th></th>
     </tr></thead>
-    {% for user in users %}
+    {% for associate in associates %}
     <tr>
       <td>
         <label for="{{
-            self.body_id() + "-form-input-" + user.id|string
-            }}">{{user.collation_name -}}
+            self.body_id() + "-form-input-" + associate.id|string
+            }}">{{associate.collation_name -}}
         </label>
       </td>
       <td>
         <input form="{{self.body_id() + "-form"}}" id="{{
-            self.body_id() + "-form-input-" + user.id|string
-            }}" type="radio" name="user-id" value="{{user.id}}"/>
+            self.body_id() + "-form-input-" + associate.id|string
+            }}" type="radio" name="associate-id" value="{{associate.id}}"/>
       </td>
     </tr>
     {% endfor %}

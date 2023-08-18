@@ -27,6 +27,7 @@ from strawberry.types.nodes import SelectedField
 from .authorization import oso
 from .db_models import (
     Base,
+    DBAssociate,
     DBBillingCharge,
     DBBillingPayment,
     DBCommunity,
@@ -35,13 +36,16 @@ from .db_models import (
     DBGroup,
     DBGroupMembership,
     DBNode,
-    DBProspectiveResident,
     DBResidence,
     DBRight,
     DBUser,
 )
 from .enums import ApplicationStatus, PermissionsFlag
-from .gql_helpers import encode_gql_id, recursive_eager_load
+from .gql_helpers import (
+    encode_gql_id,
+    gql_id_to_table_id_unchecked,
+    recursive_eager_load,
+)
 from .gql_permissions import IsAuthenticated
 
 DB = TypeVar("DB", bound=DBNode)
@@ -162,17 +166,53 @@ class Community(Node[DBCommunity]):
         return Connection(edges=[Edge(node=Right(db=r)) for r in self.db.rights])
 
     @strawberry.field
-    def users(self) -> Optional[Connection["User"]]:
-        return Connection(edges=[Edge(node=User(db=u)) for u in self.db.users])
+    def associates(self) -> Optional[Connection["Associate"]]:
+        return Connection(
+            edges=[Edge(node=Associate(db=a)) for a in self.db.associates]
+        )
+
+
+@strawberry.type
+class Associate(Node[DBAssociate]):
+    dbtype = DBAssociate
 
     @strawberry.field
-    def prospective_residents(self) -> Optional[Connection["ProspectiveResident"]]:
-        return Connection(
-            edges=[
-                Edge(node=ProspectiveResident(db=pr))
-                for pr in self.db.prospective_residents
+    def personal_name(self) -> str:
+        return self.db.personal_name
+
+    @strawberry.field
+    def family_name(self) -> str:
+        return self.db.family_name
+
+    @strawberry.field
+    def full_name(self) -> str:
+        return self.db.full_name
+
+    @strawberry.field
+    def collation_name(self) -> str:
+        return self.db.collation_name
+
+    @strawberry.field
+    def contact_methods(self, info: Info) -> List["ContactMethod"]:
+        au = info.context.active_user
+        if au:
+            return [
+                EmailContact(db=cm)
+                for cm in self.db.contact_methods
+                if isinstance(cm, DBEmailContact) and oso.is_allowed(au, "query", cm)
             ]
+        else:
+            return []
+
+    @strawberry.field
+    def residences(self) -> Optional[Connection["Residence"]]:
+        return Connection(
+            edges=[Edge(node=Residence(db=r)) for r in self.db.residences]
         )
+
+    @strawberry.field
+    def groups(self, info: Info) -> Optional[List["Group"]]:
+        return [Group(db=g) for g in self.db.groups]
 
 
 @strawberry.type
@@ -204,8 +244,8 @@ class Residence(Node[DBResidence]):
         return Community(db=self.db.community)
 
     @strawberry.field
-    def occupants(self) -> Optional[Connection["User"]]:
-        return Connection(edges=[Edge(node=User(db=u)) for u in self.db.occupants])
+    def occupants(self) -> Optional[Connection["Associate"]]:
+        return Connection(edges=[Edge(node=Associate(db=a)) for a in self.db.occupants])
 
     @strawberry.field
     def billing_charges(
@@ -237,41 +277,9 @@ class Issue:
 
 
 @strawberry.type
-class ProspectiveResident(Node[DBProspectiveResident]):
-    dbtype = DBProspectiveResident
-
-    @strawberry.field
-    def personal_name(self) -> str:
-        return self.db.personal_name
-
-    @strawberry.field
-    def family_name(self) -> str:
-        return self.db.family_name
-
-    @strawberry.field
-    def full_name(self) -> str:
-        return self.db.full_name
-
-    @strawberry.field
-    def collation_name(self) -> str:
-        return self.db.collation_name
-
-    @strawberry.field
-    def scheduled_occupancy_start_date(self) -> Optional[datetime.date]:
-        return self.db.scheduled_occupancy_start_date
-
-    @strawberry.field
-    def application_status(self) -> ApplicationStatus:
-        return self.db.application_status
-
-    @strawberry.field
-    def residence(self) -> Residence:
-        return Residence(db=self.db.residence)
-
-
-@strawberry.type
 class User(Node[DBUser]):
     dbtype = DBUser
+    reference_community_id: strawberry.Private[Optional[int]] = None
 
     @strawberry.field
     def personal_name(self) -> str:
@@ -288,30 +296,6 @@ class User(Node[DBUser]):
     @strawberry.field
     def collation_name(self) -> str:
         return self.db.collation_name
-
-    @strawberry.field
-    def residences(self, info: Info) -> Optional[Connection["Residence"]]:
-        ac = info.context.active_community
-        if ac:
-            return Connection(
-                edges=[
-                    Edge(node=Residence(db=r))
-                    for r in self.db.residences
-                    if r.community_id == ac.id
-                ]
-            )
-        else:
-            return Connection(
-                edges=[Edge(node=Residence(db=r)) for r in self.db.residences]
-            )
-
-    @strawberry.field
-    def groups(self, info: Info) -> Optional[List["Group"]]:
-        ac = info.context.active_community
-        if ac:
-            return [Group(db=g) for g in self.db.groups if g.community_id == ac.id]
-        else:
-            return [Group(db=g) for g in self.db.groups]
 
     @strawberry.field
     def contact_methods(self, info: Info) -> List["ContactMethod"]:
@@ -326,13 +310,43 @@ class User(Node[DBUser]):
             return []
 
     @strawberry.field
+    def residences(self, info: Info) -> Optional[Connection["Residence"]]:
+        stmt = (
+            select(DBResidence)
+            .select_from(DBAssociate)
+            .join(DBAssociate.residences)
+            .where(DBAssociate.user_id == self.db.id)
+        )
+        if self.reference_community_id:
+            stmt = stmt.where(DBAssociate.community_id == self.reference_community_id)
+        result = info.context.db_session.execute(stmt).scalars()
+        return Connection(edges=[Edge(node=Residence(db=r)) for r in result])
+
+    @strawberry.field
+    def groups(
+        self,
+        info: Info,
+    ) -> Optional[List["Group"]]:
+        stmt = (
+            select(DBGroup)
+            .select_from(DBAssociate)
+            .join(DBAssociate.groups)
+            .where(DBAssociate.user_id == self.db.id)
+        )
+        if self.reference_community_id:
+            stmt = stmt.where(DBAssociate.community_id == self.reference_community_id)
+        result = info.context.db_session.execute(stmt).scalars()
+        return [Group(db=g) for g in result]
+
+    @strawberry.field
     def is_admin(self, info: Info) -> bool:
         stmt = (
             select(DBGroupMembership.community_id, sql_func.count(DBRight.id))
             .select_from(DBGroupMembership)
             .join(DBGroup, DBGroupMembership.group_id == DBGroup.id)
             .join(DBRight, DBGroup.right_id == DBRight.id)
-            .where(DBGroupMembership.user_id == self.db.id)
+            .join(DBAssociate, DBGroupMembership.member_id == DBAssociate.id)
+            .where(DBAssociate.user_id == self.db.id)
             .group_by(DBGroupMembership.community_id)
         )
         result = info.context.db_session.execute(stmt)
@@ -370,8 +384,8 @@ class Group(Node[DBGroup]):
         return Right(db=self.db.right) if self.db.right else None
 
     @strawberry.field
-    def custom_members(self) -> Optional[List[User]]:
-        return [User(db=u) for u in self.db.custom_members]
+    def custom_members(self) -> Optional[List[Associate]]:
+        return [Associate(db=a) for a in self.db.custom_members]
 
     @strawberry.field
     def is_allowed(self, info: Info, action: str) -> bool:
@@ -422,8 +436,8 @@ class ContactMethod(Node[DBContactMethod]):
     dbtype = DBContactMethod
 
     @strawberry.field
-    def user(self) -> User:
-        return User(db=self.db.user)
+    def user(self) -> Optional[User]:
+        return User(db=self.db.user) if self.db.user else None
 
 
 @strawberry.type
@@ -499,7 +513,9 @@ class BillingCharge(Node[DBBillingCharge]):
 @strawberry.type
 class Query:
     @strawberry.field(permission_classes=[IsAuthenticated])
-    def active_user(self, info: Info) -> Optional[User]:
+    def active_user(
+        self, info: Info, reference_community: Optional[strawberry.ID] = None
+    ) -> Optional[User]:
         user_id = info.context.user_id
         au_field = None
         for field in info.selected_fields:
@@ -509,8 +525,13 @@ class Query:
         assert au_field is not None
         stmt = select(DBUser).where(DBUser.id == user_id)
         rows = recursive_eager_load(info, stmt, DBUser, au_field)
+        c_id = (
+            gql_id_to_table_id_unchecked(reference_community)
+            if reference_community
+            else None
+        )
         if len(rows) == 1:
-            return User(db=rows[0][0])
+            return User(db=rows[0][0], reference_community_id=c_id)
         else:
             return None
 

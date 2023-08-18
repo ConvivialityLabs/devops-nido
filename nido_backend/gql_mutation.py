@@ -20,7 +20,6 @@ from .gql_mutation_billing_charge import BillingChargeMutations
 from .gql_mutation_contact_method import ContactMethodMutations
 from .gql_mutation_group import GroupMutations
 from .gql_mutation_issue import IssueMutations
-from .gql_mutation_prospective_resident import ProspectiveResidentMutations
 from .gql_mutation_right import RightMutations
 
 
@@ -34,7 +33,4 @@ class Mutation:
     )
     groups: GroupMutations = strawberry.field(resolver=lambda: GroupMutations())
     issues: IssueMutations = strawberry.field(resolver=lambda: IssueMutations())
-    prospective_residents: ProspectiveResidentMutations = strawberry.field(
-        resolver=lambda: ProspectiveResidentMutations()
-    )
     rights: RightMutations = strawberry.field(resolver=lambda: RightMutations())

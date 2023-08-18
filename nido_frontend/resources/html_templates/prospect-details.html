@@ -7,15 +7,14 @@
   <h2>Basic Information</h2>
   <dl>
     <dt>Name:</dt>
-    <dd>{{prospect.full_name}}</dd>
+    <dd>{{prospect.applicant.full_name}}</dd>
     <dt>Address:</dt>
     <dd>{{prospect.residence.street}}
       {%- if prospect.residence.unit_no %} {{prospect.residence.unit_no}}{% endif -%}
     </dd>
     <dt>Status:</dt>
     <dd>{{prospect.application_status.name}}</dd>
-    {% if prospect.signature_template
-    and prospect.application_status == statuses.AWAITING_APPLICANT_SIGNATURE -%}
+    {% if prospect.application_status == statuses.AWAITING_APPLICANT_SIGNATURE -%}
     <dt>Document Signature URL:</dt>
     <dd><a href="{{url_for('apply.sign_doc', id=prospect.id)}}">{{url_for('apply.sign_doc', id=prospect.id, _external=True)}}</a></dd>
     {%- endif %}

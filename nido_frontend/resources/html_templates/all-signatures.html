@@ -13,11 +13,11 @@
     </tr></thead>
     {% for doc in docs %}
     <tr>
-      <td rowspan="1">{{doc.user.full_name}}</td>
+      <td rowspan="1">{{doc.signer.full_name}}</td>
       <td>{{doc.name}}</td>
       <td>{{doc.signature_date}}</td>
       <td>
-        <a href="{{url_for(".view_signed", doc_name=doc.name)}}">View</a>
+        <a href="{{url_for(".view_signed", id=doc.id)}}">View</a>
       </td>
     </tr>
     {% endfor %}

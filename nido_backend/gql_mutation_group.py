@@ -122,29 +122,17 @@ class GroupMutations:
             if i.managing_group:
                 managing_id = gql_id_to_table_id_unchecked(i.managing_group)
                 ng.managing_group_id = managing_id
-                info.context.db_session.add(ng)
             else:
-                info.context.db_session.add(ng)
-                try:
-                    info.context.db_session.flush()
-                except:
-                    errors.append(DatabaseError())
-                    info.context.db_session.rollback()
-                    continue
-                ng.managing_group_id = ng.id
-                info.context.db_session.add(ng)
+                ng.managed_by = ng
+            info.context.db_session.add(ng)
             if i.custom_members:
                 for mem_id in i.custom_members:
                     entry = DBGroupMembership(
-                        user_id=gql_id_to_table_id_unchecked(mem_id),
+                        member_id=gql_id_to_table_id_unchecked(mem_id),
                         community_id=community_id,
                     )
                     entry.group = ng
                     info.context.db_session.add(entry)
-            else:
-                entry = DBGroupMembership(user_id=au.id, community_id=community_id)
-                entry.group = ng
-                info.context.db_session.add(entry)
             try:
                 info.context.db_session.commit()
                 new_groups.append(Group(db=ng))
@@ -223,10 +211,11 @@ class GroupMutations:
                 errors.append(Unauthorized())
                 continue
             for m_id in i.members:
-                member = info.context.db_session.get(
-                    DBUser, gql_id_to_table_id_unchecked(m_id)
+                entry = DBGroupMembership(
+                    member_id=gql_id_to_table_id_unchecked(m_id),
                 )
-                group.custom_members.append(member)
+                entry.group = group
+                info.context.db_session.add(entry)
             info.context.db_session.add(group)
             try:
                 info.context.db_session.commit()
@@ -257,7 +246,7 @@ class GroupMutations:
             stmt = delete(DBGroupMembership).where(
                 DBGroupMembership.community_id == community_id,
                 DBGroupMembership.group_id == group.id,
-                DBGroupMembership.user_id.in_(
+                DBGroupMembership.member_id.in_(
                     [gql_id_to_table_id_unchecked(m_id) for m_id in i.members]
                 ),
             )

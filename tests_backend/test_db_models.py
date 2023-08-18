@@ -9,7 +9,7 @@ from nido_backend.db_models import (
     DBEmailContact,
     DBGroup,
     DBGroupMembership,
-    DBProspectiveResident,
+    DBOccupancyApplication,
     DBResidenceOccupancy,
     DBRight,
 )
@@ -17,7 +17,7 @@ from nido_backend.enums import PermissionsFlag
 
 
 def test_residence_occupany_foreign_key(db_session):
-    invalid_entry = DBResidenceOccupancy(community_id=2, residence_id=1, user_id=1)
+    invalid_entry = DBResidenceOccupancy(community_id=2, residence_id=1, occupant_id=1)
     db_session.add(invalid_entry)
     with pytest.raises(IntegrityError):
         db_session.commit()
@@ -25,15 +25,14 @@ def test_residence_occupany_foreign_key(db_session):
 
 def test_unique_email_constraint(db_session):
     original = db_session.get(DBEmailContact, 1)
-    dup_email = DBEmailContact(user=original.user, email=original.email)
+    dup_email = DBEmailContact(user_id=original.user.id, email=original.email)
     db_session.add(dup_email)
     with pytest.raises(IntegrityError):
         db_session.commit()
 
 
 def test_contact_method_user_foreign_key(db_session):
-    email = DBEmailContact(user=None, email="testunique@example.com")
-    email.user_id = 0xDEADBEEF
+    email = DBEmailContact(user_id=0xDEADBEEF, email="testunique@example.com")
     db_session.add(email)
     with pytest.raises(IntegrityError):
         db_session.commit()
@@ -101,14 +100,12 @@ def test_directory_folder_name_cannot_contain_underscore(db_session):
         db_session.commit()
 
 
-def test_prospective_resident_foreign_key(db_session):
-    prospie = DBProspectiveResident(
+def test_occupancy_application_foreign_key(db_session):
+    application = DBOccupancyApplication(
         community_id=1,
         residence_id=5,
         sponsor_id=1,
-        personal_name="Test",
-        family_name="Example",
     )
-    db_session.add(prospie)
+    db_session.add(application)
     with pytest.raises(IntegrityError):
         db_session.commit()

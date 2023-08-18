@@ -16,11 +16,11 @@ mutation TestNew($input: [NewGroupInput!] = {name: ""}) {
 
 
 def test_gql_mutation_new_group_success(test_schema, db_session):
-    old_count = db_session.scalar(select(func.count()).select_from(DBGroupMembership))
+    old_count = db_session.scalar(select(func.count()).select_from(DBGroup))
     var_dir = {"input": {"name": "Test Name"}}
     context = {"user_id": 1, "community_id": 1}
     test_schema.execute_sync(test_new_query, var_dir, context)
-    new_count = db_session.scalar(select(func.count()).select_from(DBGroupMembership))
+    new_count = db_session.scalar(select(func.count()).select_from(DBGroup))
     assert new_count == old_count + 1
 
 

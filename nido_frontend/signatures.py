@@ -37,6 +37,7 @@ from sqlalchemy import delete, select
 from sqlalchemy.orm import defer, joinedload, load_only
 
 from nido_backend.db_models import (
+    DBAssociate,
     DBSignatureAssignment,
     DBSignatureRecord,
     DBSignatureTemplate,
@@ -62,9 +63,10 @@ query  {
     user_id = session.get("user_id")
     stmt = (
         select(DBSignatureAssignment)
+        .join(DBAssociate, DBAssociate.id == DBSignatureAssignment.signer_id)
         .where(
             DBSignatureAssignment.community_id == community_id,
-            DBSignatureAssignment.user_id == user_id,
+            DBAssociate.user_id == user_id,
         )
         .options(
             joinedload(DBSignatureAssignment.signature_template).options(
@@ -98,9 +100,10 @@ query  {
         select(DBSignatureTemplate)
         .select_from(DBSignatureAssignment)
         .join(DBSignatureAssignment.signature_template)
+        .join(DBAssociate, DBAssociate.id == DBSignatureAssignment.signer_id)
         .where(
             DBSignatureTemplate.community_id == community_id,
-            DBSignatureAssignment.user_id == user_id,
+            DBAssociate.user_id == user_id,
             DBSignatureTemplate.name == doc_name,
         )
     )
@@ -130,17 +133,18 @@ def sign_doc_post(doc_name: str):
     user_id = session.get("user_id")
     assert user_id is not None
     stmt = (
-        select(DBSignatureTemplate)
+        select(DBSignatureTemplate, DBAssociate.id)
         .select_from(DBSignatureAssignment)
         .join(DBSignatureAssignment.signature_template)
+        .join(DBAssociate, DBAssociate.id == DBSignatureAssignment.signer_id)
         .where(
             DBSignatureTemplate.community_id == community_id,
-            DBSignatureAssignment.user_id == user_id,
+            DBAssociate.user_id == user_id,
             DBSignatureTemplate.name == doc_name,
         )
     )
     try:
-        doc = g.db_session.execute(stmt).scalars().one()
+        (doc, a_id) = g.db_session.execute(stmt).one()
     except:
         return abort(404)
     try:
@@ -180,7 +184,7 @@ def sign_doc_post(doc_name: str):
     )
     record = DBSignatureRecord(
         community_id=community_id,
-        user_id=user_id,
+        signer_id=a_id,
         data=out.read(),
         name=doc_name,
         signature_date=datetime.date.today(),
@@ -189,7 +193,7 @@ def sign_doc_post(doc_name: str):
     g.db_session.execute(
         delete(DBSignatureAssignment).where(
             DBSignatureAssignment.community_id == community_id,
-            DBSignatureAssignment.user_id == user_id,
+            DBSignatureAssignment.signer_id == a_id,
             DBSignatureAssignment.template_id == doc.id,
         )
     )
@@ -210,9 +214,10 @@ query  {
     user_id = session.get("user_id")
     stmt = (
         select(DBSignatureRecord)
+        .join(DBAssociate, DBAssociate.id == DBSignatureRecord.signer_id)
         .where(
             DBSignatureRecord.community_id == community_id,
-            DBSignatureRecord.user_id == user_id,
+            DBAssociate.user_id == user_id,
         )
         .options(defer(DBSignatureRecord.data))
     )
@@ -237,10 +242,14 @@ query  {
 }"""
     community_id = session.get("community_id")
     user_id = session.get("user_id")
-    stmt = select(DBSignatureRecord).where(
-        DBSignatureRecord.community_id == community_id,
-        DBSignatureRecord.user_id == user_id,
-        DBSignatureRecord.name == doc_name,
+    stmt = (
+        select(DBSignatureRecord)
+        .join(DBAssociate, DBAssociate.id == DBSignatureRecord.signer_id)
+        .where(
+            DBSignatureRecord.community_id == community_id,
+            DBAssociate.user_id == user_id,
+            DBSignatureRecord.name == doc_name,
+        )
     )
     try:
         doc = g.db_session.execute(stmt).scalars().one()

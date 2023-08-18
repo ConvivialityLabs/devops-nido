@@ -29,12 +29,7 @@ from flask import (
 from sqlalchemy import select
 from sqlalchemy.exc import MultipleResultsFound, NoResultFound
 
-from nido_backend.db_models import (
-    DBContactMethod,
-    DBEmailContact,
-    DBResidenceOccupancy,
-    DBUser,
-)
+from nido_backend.db_models import DBAssociate, DBContactMethod, DBEmailContact, DBUser
 
 
 ## Create login_required decorator
@@ -57,11 +52,11 @@ def login():
     if request.method == "POST":
         ident = request.form.get("ident")
         stmt = (
-            select(DBContactMethod.user_id, DBResidenceOccupancy.community_id)
+            select(DBAssociate.user_id, DBAssociate.community_id)
             .select_from(DBContactMethod)
             .join(
-                DBResidenceOccupancy,
-                DBContactMethod.user_id == DBResidenceOccupancy.user_id,
+                DBAssociate,
+                DBContactMethod.user_id == DBAssociate.user_id,
             )
             .distinct()
             .where(DBEmailContact.email == ident)

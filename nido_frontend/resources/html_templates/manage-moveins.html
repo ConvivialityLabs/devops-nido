@@ -12,20 +12,20 @@
       <th>Status</th>
       <th></th>
     </tr></thead>
-    {%- for pr in prospective_residents %}
+    {%- for app in applications %}
     <tr>
-      <td rowspan="1">{{pr.full_name}}</td>
+      <td rowspan="1">{{app.applicant.full_name}}</td>
       <td>
-          {{- pr.residence.street -}}
-          {% if pr.residence.unit_no %} {{pr.residence.unit_no}}{% endif %}
+          {{- app.residence.street -}}
+          {% if app.residence.unit_no %} {{app.residence.unit_no}}{% endif %}
       </td>
-      <td>{{pr.application_status.name}}</td>
+      <td>{{app.application_status.name}}</td>
       <td>
-        <a href="{{url_for(".prospect_details", id=pr.id)}}">View Details</a>
+        <a href="{{url_for(".prospect_details", id=app.id)}}">View Details</a>
       </td>
     </tr>
     {% endfor %}
-    {% if prospective_residents|count == 0 %}
+    {% if applications|count == 0 %}
     <tr>
       <td colspan="4">None</td>
     </tr>

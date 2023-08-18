@@ -5,6 +5,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 
 from nido_backend.db_models import (
+    DBAssociate,
     DBBillingCharge,
     DBBillingPayment,
     DBBillingTransaction,
@@ -13,7 +14,6 @@ from nido_backend.db_models import (
     DBDirFolder,
     DBEmailContact,
     DBGroup,
-    DBProspectiveResident,
     DBResidence,
     DBRight,
     DBUser,
@@ -4223,13 +4223,17 @@ def seed_db(db_session, do_full_seed=False):
     first_of_month = datetime.datetime.now().replace(day=1, hour=0, minute=0, second=0)
     for residence in residences:
         for user_info in user_by_residence[residence.id - 1]:
-            user = DBUser(**user_info["user"])
+            associate = DBAssociate(
+                community_id=residence.community_id, **user_info["user"]
+            )
             for email in user_info["emails"]:
-                ec = DBEmailContact(email=email, user=user)
+                ec = DBEmailContact(email=email)
+                associate.contact_methods.append(ec)
                 db_session.add(ec)
-            residence.occupants.append(user)
-            db_session.add(user)
+            residence.occupants.append(associate)
 
+        if len(residence.occupants) == 0:
+            continue
         for i in range(1, 13):
             year = (
                 first_of_month.year
@@ -4247,7 +4251,7 @@ def seed_db(db_session, do_full_seed=False):
             residence.billing_charges.append(charge)
             payment = DBBillingPayment(
                 community_id=residence.community_id,
-                user_id=None,
+                payer_id=residence.occupants[0].id,
                 amount=10000,
                 payment_date=charge_date,
             )
@@ -4293,15 +4297,6 @@ def seed_db(db_session, do_full_seed=False):
 
     db_session.commit()
 
-    prospect = DBProspectiveResident(
-        community_id=1,
-        residence_id=3,
-        personal_name="John",
-        family_name="Doe",
-    )
-
-    db_session.add(prospect)
-
     bod_numbers = [
         [0, 1, 2, 3, 4, -1],
         [300, 121, 381, 59, 442, 249],
@@ -4321,7 +4316,16 @@ def seed_db(db_session, do_full_seed=False):
         top_group.managing_group_id = top_group.id
         top_right.parent_right_id = top_right.id
 
-        top_group.custom_members.extend([c.users[i] for i in bod_numbers[c.id - 1]])
+        for i in bod_numbers[c.id - 1]:
+            associate = c.associates[i]
+            associate.user = DBUser(
+                personal_name=associate.personal_name,
+                family_name=associate.family_name,
+            )
+            associate.user.contact_methods = associate.contact_methods
+            db_session.add(associate.user)
+            top_group.custom_members.append(associate)
+
         president = DBGroup(community_id=c.id, name="President")
         president.managing_group_id = top_group.id
         president.custom_members.append(top_group.custom_members[0])

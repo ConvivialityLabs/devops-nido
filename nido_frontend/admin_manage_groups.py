@@ -84,7 +84,7 @@ query NewGroup {
     }
   }
   activeCommunity {
-    users {
+    associates {
       edges {
         node {
           id
@@ -98,14 +98,16 @@ query NewGroup {
     groups = gql_result.data.active_user.groups
     rights = [cr for group in groups if group.right for cr in group.right.child_rights]
     rights.extend([group.right for group in groups if group.right])
-    users = [edge.node for edge in gql_result.data.active_community.users.edges]
+    associates = [
+        edge.node for edge in gql_result.data.active_community.associates.edges
+    ]
     main_menu_links = get_admin_menu()
     return render_template(
         "new-group.html",
         main_menu_links=main_menu_links,
         parent_groups=groups,
         rights=rights,
-        users=users,
+        users=associates,
         au_id=gql_result.data.active_user.id,
     )
 
@@ -163,7 +165,7 @@ query EditGroup($name: String!) {
         }
       }
     }
-    users {
+    associates {
       edges {
         node {
           id
@@ -189,7 +191,7 @@ query EditGroup($name: String!) {
         abort(403)
     nonmembers = [
         edge.node
-        for edge in gql_result.data.active_community.users.edges
+        for edge in gql_result.data.active_community.associates.edges
         if filter_users(edge.node.id, group["members"])
     ]
     parent_groups = gql_result.data.active_user.groups

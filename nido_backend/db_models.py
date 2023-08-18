@@ -81,6 +81,9 @@ class DBCommunity(Base, DBNode):
 
     name: Mapped[str]
 
+    associates: Mapped[List["DBAssociate"]] = relationship(
+        back_populates="community", init=False, repr=False
+    )
     residences: Mapped[List["DBResidence"]] = relationship(
         back_populates="community", init=False, repr=False
     )
@@ -103,14 +106,70 @@ class DBCommunity(Base, DBNode):
     rights: Mapped[List["DBRight"]] = relationship(
         back_populates="community", viewonly=True, init=False, repr=False
     )
-    users: Mapped[List["DBUser"]] = relationship(
+    occupancy_applications: Mapped[List["DBOccupancyApplication"]] = relationship(
+        back_populates="community", init=False, repr=False
+    )
+
+
+class DBAssociate(Base, DBNode):
+    __tablename__ = "associate"
+    __table_args__ = (sql_schema.UniqueConstraint("id", "community_id"),)
+
+    user_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("user.id", ondelete="SET NULL"), default=None
+    )
+    community_id: Mapped[int] = mapped_column(
+        ForeignKey("community.id", ondelete="CASCADE"), kw_only=True
+    )
+
+    personal_name: Mapped[str] = mapped_column(kw_only=True)
+    family_name: Mapped[str] = mapped_column(kw_only=True)
+
+    full_name: Mapped[str] = column_property(personal_name + " " + family_name)
+    collation_name: Mapped[str] = column_property(family_name + ", " + personal_name)
+
+    user: Mapped[Optional["DBUser"]] = relationship(init=False, repr=False)
+    contact_methods: Mapped[List["DBContactMethod"]] = relationship(
+        secondary="associate_contact_listing", init=False, repr=False
+    )
+    community: Mapped[DBCommunity] = relationship(
+        back_populates="associates", init=False, repr=False
+    )
+    residences: Mapped[List["DBResidence"]] = relationship(
         secondary="residence_occupancy",
         viewonly=True,
+        back_populates="occupants",
         init=False,
         repr=False,
     )
-    prospective_residents: Mapped[List["DBProspectiveResident"]] = relationship(
-        back_populates="community", init=False, repr=False
+    occupancy_applications: Mapped[List["DBOccupancyApplication"]] = relationship(
+        foreign_keys="DBOccupancyApplication.applicant_id",
+        back_populates="applicant",
+        init=False,
+        repr=False,
+    )
+    applications_sponsored: Mapped[List["DBOccupancyApplication"]] = relationship(
+        primaryjoin="DBAssociate.id == DBOccupancyApplication.sponsor_id",
+        foreign_keys="DBOccupancyApplication.sponsor_id",
+        back_populates="sponsor",
+        init=False,
+        repr=False,
+    )
+    groups: Mapped[List["DBGroup"]] = relationship(
+        secondary="group_membership",
+        back_populates="custom_members",
+        init=False,
+        repr=False,
+    )
+    recurring_billing_charges: Mapped[List["DBBillingRecurringCharge"]] = relationship(
+        back_populates="occupant", viewonly=True, init=False, repr=False
+    )
+    billing_charges: Mapped[List["DBBillingCharge"]] = relationship(
+        order_by="DBBillingCharge.charge_date.desc()",
+        back_populates="occupant",
+        viewonly=True,
+        init=False,
+        repr=False,
     )
 
 
@@ -136,14 +195,14 @@ class DBResidence(Base, DBNode):
     community: Mapped[DBCommunity] = relationship(
         back_populates="residences", init=False, repr=False
     )
-    occupants: Mapped[List["DBUser"]] = relationship(
+    occupants: Mapped[List[DBAssociate]] = relationship(
         secondary="residence_occupancy",
         back_populates="residences",
         init=False,
         repr=False,
     )
-    prospective_occupants: Mapped[List["DBProspectiveResident"]] = relationship(
-        foreign_keys="DBProspectiveResident.residence_id",
+    occupancy_applications: Mapped[List["DBOccupancyApplication"]] = relationship(
+        foreign_keys="DBOccupancyApplication.residence_id",
         back_populates="residence",
         init=False,
         repr=False,
@@ -169,6 +228,11 @@ class DBResidenceOccupancy(Base):
             ["residence.id", "residence.community_id"],
             ondelete="RESTRICT",
         ),
+        sql_schema.ForeignKeyConstraint(
+            ["occupant_id", "community_id"],
+            ["associate.id", "associate.community_id"],
+            ondelete="RESTRICT",
+        ),
     )
     # CASCADE when community is deleted, because deleting the community can
     # only mean that they are no longer interested in using the service. But
@@ -180,9 +244,7 @@ class DBResidenceOccupancy(Base):
         ForeignKey("community.id", ondelete="CASCADE"), primary_key=True
     )
     residence_id: Mapped[int] = mapped_column(primary_key=True)
-    user_id: Mapped[int] = mapped_column(
-        ForeignKey("user.id", ondelete="RESTRICT"), primary_key=True
-    )
+    occupant_id: Mapped[int] = mapped_column(primary_key=True)
     date_begun: Mapped[Optional[datetime.date]] = mapped_column(default=None)
     date_ended: Mapped[Optional[datetime.date]] = mapped_column(default=None)
 
@@ -195,42 +257,16 @@ class DBUser(Base, DBNode):
     full_name: Mapped[str] = column_property(personal_name + " " + family_name)
     collation_name: Mapped[str] = column_property(family_name + ", " + personal_name)
 
-    residences: Mapped[List[DBResidence]] = relationship(
-        secondary="residence_occupancy",
-        back_populates="occupants",
-        init=False,
-        repr=False,
-    )
-    sponsoring_applicants: Mapped[List["DBProspectiveResident"]] = relationship(
-        primaryjoin="DBUser.id == DBProspectiveResident.sponsor_id",
-        foreign_keys="DBProspectiveResident.sponsor_id",
-        back_populates="sponsor",
-        init=False,
-        repr=False,
-    )
-    recurring_billing_charges: Mapped[List["DBBillingRecurringCharge"]] = relationship(
-        back_populates="user", viewonly=True, init=False, repr=False
-    )
-    billing_charges: Mapped[List["DBBillingCharge"]] = relationship(
-        order_by="DBBillingCharge.charge_date.desc()",
-        back_populates="user",
-        viewonly=True,
-        init=False,
-        repr=False,
-    )
     contact_methods: Mapped[List["DBContactMethod"]] = relationship(
         back_populates="user", init=False, repr=False
     )
-    groups: Mapped[List["DBGroup"]] = relationship(
-        secondary="group_membership",
-        back_populates="custom_members",
-        init=False,
-        repr=False,
+    self_associates: Mapped[List["DBAssociate"]] = relationship(
+        back_populates="user", init=False, repr=False
     )
 
 
-class DBProspectiveResident(Base, DBNode):
-    __tablename__ = "prospective_resident"
+class DBOccupancyApplication(Base, DBNode):
+    __tablename__ = "occupancy_application"
     __table_args__ = (
         sql_schema.UniqueConstraint("id", "community_id"),
         sql_schema.ForeignKeyConstraint(
@@ -238,21 +274,21 @@ class DBProspectiveResident(Base, DBNode):
             ["residence.id", "residence.community_id"],
             ondelete="CASCADE",
         ),
+        sql_schema.ForeignKeyConstraint(
+            ["applicant_id", "community_id"],
+            ["associate.id", "associate.community_id"],
+            ondelete="RESTRICT",
+        ),
         # While we never join with residence_occupancy directly,
         # we do want to make sure a sponsor can only sponsor for a
         # residence the sponsor occupies.
         sql_schema.ForeignKeyConstraint(
             ["sponsor_id", "residence_id", "community_id"],
             [
-                "residence_occupancy.user_id",
+                "residence_occupancy.occupant_id",
                 "residence_occupancy.residence_id",
                 "residence_occupancy.community_id",
             ],
-            ondelete="CASCADE",
-        ),
-        sql_schema.ForeignKeyConstraint(
-            ["template_id", "community_id"],
-            ["signature_template.id", "signature_template.community_id"],
             ondelete="CASCADE",
         ),
     )
@@ -261,14 +297,9 @@ class DBProspectiveResident(Base, DBNode):
         ForeignKey("community.id", ondelete="CASCADE")
     )
     residence_id: Mapped[int] = mapped_column()
-    user_self_id: Mapped[Optional[int]] = mapped_column(
-        ForeignKey("user.id", ondelete="CASCADE"), default=None
-    )
+    applicant_id: Mapped[int] = mapped_column(default=None)
     sponsor_id: Mapped[Optional[int]] = mapped_column(default=None)
-    template_id: Mapped[Optional[int]] = mapped_column(default=None)
 
-    personal_name: Mapped[str] = mapped_column(kw_only=True)
-    family_name: Mapped[str] = mapped_column(kw_only=True)
     application_status: Mapped[ApplicationStatus] = mapped_column(
         default=ApplicationStatus.AWAITING_MOVEIN
     )
@@ -276,32 +307,27 @@ class DBProspectiveResident(Base, DBNode):
         default=None
     )
 
-    full_name: Mapped[str] = column_property(personal_name + " " + family_name)
-    collation_name: Mapped[str] = column_property(family_name + ", " + personal_name)
-
     community: Mapped[DBCommunity] = relationship(
-        back_populates="prospective_residents", init=False, repr=False
+        back_populates="occupancy_applications", init=False, repr=False
+    )
+    applicant: Mapped[DBAssociate] = relationship(
+        foreign_keys=applicant_id,
+        back_populates="occupancy_applications",
+        init=False,
+        repr=False,
     )
     residence: Mapped[DBResidence] = relationship(
         foreign_keys=residence_id,
-        back_populates="prospective_occupants",
+        back_populates="occupancy_applications",
         init=False,
         repr=False,
     )
-    user_self: Mapped[Optional[DBUser]] = relationship(
-        foreign_keys=user_self_id,
-        init=False,
-        repr=False,
-    )
-    sponsor: Mapped[Optional[DBUser]] = relationship(
-        primaryjoin="DBUser.id == DBProspectiveResident.sponsor_id",
+    sponsor: Mapped[Optional[DBAssociate]] = relationship(
+        primaryjoin="DBAssociate.id == DBOccupancyApplication.sponsor_id",
         foreign_keys=sponsor_id,
-        back_populates="sponsoring_applicants",
+        back_populates="applications_sponsored",
         init=False,
         repr=False,
-    )
-    signature_template: Mapped[Optional["DBSignatureTemplate"]] = relationship(
-        viewonly=True, init=False, repr=False
     )
 
 
@@ -361,6 +387,7 @@ class DBGroup(Base, DBNode):
         back_populates="managed_by",
         foreign_keys=[managing_group_id],
         passive_deletes="all",
+        post_update=True,
         init=False,
         repr=False,
     )
@@ -370,7 +397,7 @@ class DBGroup(Base, DBNode):
         init=False,
         repr=False,
     )
-    custom_members: Mapped[List[DBUser]] = relationship(
+    custom_members: Mapped[List[DBAssociate]] = relationship(
         secondary="group_membership",
         back_populates="groups",
         init=False,
@@ -386,15 +413,18 @@ class DBGroupMembership(Base):
             ["group.id", "group.community_id"],
             ondelete="CASCADE",
         ),
+        sql_schema.ForeignKeyConstraint(
+            ["member_id", "community_id"],
+            ["associate.id", "associate.community_id"],
+            ondelete="CASCADE",
+        ),
     )
 
     community_id: Mapped[int] = mapped_column(
-        ForeignKey("community.id", ondelete="CASCADE"), primary_key=True
+        ForeignKey("community.id", ondelete="CASCADE"), primary_key=True, default=None
     )
-    group_id: Mapped[int] = mapped_column(primary_key=True, init=False)
-    user_id: Mapped[int] = mapped_column(
-        ForeignKey("user.id", ondelete="CASCADE"), primary_key=True
-    )
+    group_id: Mapped[int] = mapped_column(primary_key=True, default=None)
+    member_id: Mapped[int] = mapped_column(primary_key=True, default=None)
 
     group: Mapped["DBGroup"] = relationship(
         passive_deletes="all",
@@ -500,16 +530,34 @@ class DBRight(Base, DBNode, PermissionsMixin):  # type: ignore
     )
 
 
+class DBAssociateContactListing(Base):
+    __tablename__ = "associate_contact_listing"
+    __table_args__ = (
+        sql_schema.ForeignKeyConstraint(
+            ["associate_id", "community_id"],
+            ["associate.id", "associate.community_id"],
+            ondelete="CASCADE",
+        ),
+    )
+    associate_id: Mapped[int] = mapped_column(primary_key=True)
+    community_id: Mapped[int] = mapped_column(
+        ForeignKey("community.id", ondelete="CASCADE"), primary_key=True
+    )
+    contact_method_id: Mapped[int] = mapped_column(
+        ForeignKey("contact_method.id", ondelete="CASCADE"), primary_key=True
+    )
+
+
 class DBContactMethod(Base, DBNode):
     __tablename__ = "contact_method"
 
-    user_id: Mapped[int] = mapped_column(
-        ForeignKey("user.id", ondelete="CASCADE"), init=False
+    user_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("user.id", ondelete="SET NULL"), default=None
     )
     type: Mapped[ContactMethodType] = mapped_column(init=False, repr=False)
 
-    user: Mapped[DBUser] = relationship(
-        back_populates="contact_methods", kw_only=True, repr=False
+    user: Mapped[Optional[DBUser]] = relationship(
+        back_populates="contact_methods", init=False, repr=False
     )
 
     __mapper_args__ = {
@@ -518,7 +566,7 @@ class DBContactMethod(Base, DBNode):
 
 
 class DBEmailContact(DBContactMethod):
-    email: Mapped[str] = mapped_column(unique=True, nullable=True)
+    email: Mapped[str] = mapped_column(unique=True, nullable=True, default=None)
 
     __mapper_args__ = {
         "polymorphic_identity": ContactMethodType.Email,
@@ -552,40 +600,51 @@ class DBSignatureAssignment(Base):
             ["signature_template.id", "signature_template.community_id"],
             ondelete="CASCADE",
         ),
+        sql_schema.ForeignKeyConstraint(
+            ["signer_id", "community_id"],
+            ["associate.id", "associate.community_id"],
+            ondelete="CASCADE",
+        ),
     )
 
     community_id: Mapped[int] = mapped_column(
         ForeignKey("community.id", ondelete="CASCADE"), primary_key=True
     )
-    template_id: Mapped[int] = mapped_column(primary_key=True, init=False)
-    user_id: Mapped[int] = mapped_column(
-        ForeignKey("user.id", ondelete="CASCADE"), primary_key=True
-    )
+    template_id: Mapped[int] = mapped_column(primary_key=True)
+    signer_id: Mapped[int] = mapped_column(primary_key=True)
 
+    community: Mapped[DBCommunity] = relationship(init=False, repr=False)
     signature_template: Mapped[DBSignatureTemplate] = relationship(
-        viewonly=True, init=False, repr=False
+        foreign_keys=template_id, init=False, repr=False
     )
-    user: Mapped[DBUser] = relationship(viewonly=True, init=False, repr=False)
+    signer: Mapped[DBAssociate] = relationship(
+        foreign_keys=signer_id, init=False, repr=False
+    )
 
 
 class DBSignatureRecord(Base, DBNode):
     __tablename__ = "signature_record"
     __table_args__ = (
         sql_schema.UniqueConstraint("id", "community_id"),
-        sql_schema.UniqueConstraint("user_id", "name"),
+        sql_schema.UniqueConstraint("signer_id", "name"),
+        sql_schema.ForeignKeyConstraint(
+            ["signer_id", "community_id"],
+            ["associate.id", "associate.community_id"],
+            ondelete="RESTRICT",
+        ),
     )
 
     community_id: Mapped[int] = mapped_column(
         ForeignKey("community.id", ondelete="CASCADE")
     )
-    user_id: Mapped[int] = mapped_column(ForeignKey("user.id", ondelete="RESTRICT"))
+    signer_id: Mapped[int]
 
     name: Mapped[str]
     data: Mapped[bytes]
     signature_date: Mapped[datetime.date]
 
     community: Mapped[DBCommunity] = relationship(viewonly=True, init=False, repr=False)
-    user: Mapped[DBUser] = relationship(viewonly=True, init=False, repr=False)
+    signer: Mapped[DBAssociate] = relationship(viewonly=True, init=False, repr=False)
 
 
 class DBDirFolder(Base, DBNode):
@@ -721,14 +780,19 @@ class DBDirFileGroupPermissions(Base):
 
 class DBBillingPayment(Base, DBNode):
     __tablename__ = "billing_payment"
-    __table_args__ = (sql_schema.UniqueConstraint("id", "community_id"),)
+    __table_args__ = (
+        sql_schema.ForeignKeyConstraint(
+            ["payer_id", "community_id"],
+            ["associate.id", "associate.community_id"],
+            ondelete="RESTRICT",
+        ),
+        sql_schema.UniqueConstraint("id", "community_id"),
+    )
 
     community_id: Mapped[int] = mapped_column(
         ForeignKey("community.id", ondelete="CASCADE")
     )
-    user_id: Mapped[Optional[int]] = mapped_column(
-        ForeignKey("user.id", ondelete="RESTRICT")
-    )
+    payer_id: Mapped[int]
 
     amount: Mapped[int] = mapped_column()
     payment_date: Mapped[datetime.datetime]
@@ -752,9 +816,14 @@ class DBBillingCharge(Base, DBNode):
             ["residence.id", "residence.community_id"],
             ondelete="RESTRICT",
         ),
+        sql_schema.ForeignKeyConstraint(
+            ["occupant_id", "community_id"],
+            ["associate.id", "associate.community_id"],
+            ondelete="RESTRICT",
+        ),
         sql_schema.CheckConstraint(
-            "(residence_id IS NULL AND user_id IS NOT NULL) OR "
-            "(user_id IS NULL AND residence_id IS NOT NULL)"
+            "(residence_id IS NULL AND occupant_id IS NOT NULL) OR "
+            "(occupant_id IS NULL AND residence_id IS NOT NULL)"
         ),
     )
     # CASCADE when community is deleted, because deleting the community can
@@ -767,10 +836,7 @@ class DBBillingCharge(Base, DBNode):
         ForeignKey("community.id", ondelete="CASCADE")
     )
     residence_id: Mapped[Optional[int]] = mapped_column(init=False)
-    user_id: Mapped[Optional[int]] = mapped_column(
-        ForeignKey("user.id", ondelete="RESTRICT"),
-        init=False,
-    )
+    occupant_id: Mapped[Optional[int]] = mapped_column(init=False)
 
     name: Mapped[str]
     amount: Mapped[int] = mapped_column()
@@ -785,8 +851,11 @@ class DBBillingCharge(Base, DBNode):
     residence: Mapped[Optional[DBResidence]] = relationship(
         init=False, repr=False, back_populates="billing_charges"
     )
-    user: Mapped[Optional[DBUser]] = relationship(
-        init=False, repr=False, back_populates="billing_charges"
+    occupant: Mapped[Optional[DBAssociate]] = relationship(
+        init=False,
+        repr=False,
+        back_populates="billing_charges",
+        overlaps="billing_charges,residence",
     )
     payments: Mapped[List[DBBillingPayment]] = relationship(
         secondary="billing_transaction",
@@ -805,9 +874,14 @@ class DBBillingRecurringCharge(Base, DBNode):
             ["residence.id", "residence.community_id"],
             ondelete="RESTRICT",
         ),
+        sql_schema.ForeignKeyConstraint(
+            ["occupant_id", "community_id"],
+            ["associate.id", "associate.community_id"],
+            ondelete="RESTRICT",
+        ),
         sql_schema.CheckConstraint(
-            "(residence_id IS NULL AND user_id IS NOT NULL) OR "
-            "(user_id IS NULL AND residence_id IS NOT NULL)"
+            "(residence_id IS NULL AND occupant_id IS NOT NULL) OR "
+            "(occupant_id IS NULL AND residence_id IS NOT NULL)"
         ),
     )
     # CASCADE when community is deleted, because deleting the community can
@@ -820,9 +894,7 @@ class DBBillingRecurringCharge(Base, DBNode):
         ForeignKey("community.id", ondelete="CASCADE")
     )
     residence_id: Mapped[Optional[int]]
-    user_id: Mapped[Optional[int]] = mapped_column(
-        ForeignKey("user.id", ondelete="RESTRICT")
-    )
+    occupant_id: Mapped[Optional[int]] = mapped_column(init=False)
 
     name: Mapped[str]
     amount: Mapped[int]
@@ -840,8 +912,11 @@ class DBBillingRecurringCharge(Base, DBNode):
     residence: Mapped[Optional[DBResidence]] = relationship(
         init=False, repr=False, back_populates="recurring_billing_charges"
     )
-    user: Mapped[Optional[DBUser]] = relationship(
-        init=False, repr=False, back_populates="recurring_billing_charges"
+    occupant: Mapped[Optional[DBAssociate]] = relationship(
+        init=False,
+        repr=False,
+        back_populates="recurring_billing_charges",
+        overlaps="recurring_billing_charges,residence",
     )
 
 

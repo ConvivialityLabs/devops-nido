@@ -31,8 +31,10 @@ from sqlalchemy import delete, select
 from sqlalchemy.orm import defer, selectinload
 
 from nido_backend.db_models import (
-    DBProspectiveResident,
+    DBAssociate,
+    DBOccupancyApplication,
     DBResidenceOccupancy,
+    DBSignatureAssignment,
     DBSignatureTemplate,
     DBUser,
 )
@@ -51,20 +53,18 @@ def index():
     # TODO refactor this to use GQL api when available
     community_id = session.get("community_id")
     stmt = (
-        select(DBProspectiveResident)
-        .where(DBProspectiveResident.community_id == community_id)
+        select(DBOccupancyApplication)
+        .where(DBOccupancyApplication.community_id == community_id)
         .options(
-            selectinload(DBProspectiveResident.residence),
-            selectinload(DBProspectiveResident.signature_template).options(
-                defer(DBSignatureTemplate.data)
-            ),
+            selectinload(DBOccupancyApplication.applicant),
+            selectinload(DBOccupancyApplication.residence),
         )
     )
-    prs = g.db_session.execute(stmt).scalars().all()
+    applications = g.db_session.execute(stmt).scalars().all()
     main_menu_links = get_admin_menu()
     return render_template(
         "manage-moveins.html",
-        prospective_residents=prs,
+        applications=applications,
         main_menu_links=main_menu_links,
     )
 
@@ -112,23 +112,28 @@ query AddProspective {
 def add_prospie_post():
     community_id = session.get("community_id")
     residence_id = gql_id_to_table_id_unchecked(request.form["residence-id"])
-    new_prospect = DBProspectiveResident(
+    application = DBOccupancyApplication(
         community_id=community_id,
         residence_id=residence_id,
+    )
+    applicant = DBAssociate(
+        community_id=community_id,
         personal_name=request.form["personal-name"],
         family_name=request.form["family-name"],
-        application_status=ApplicationStatus.AWAITING_MOVEIN,
     )
+    application.applicant = applicant
     try:
         begin_date = datetime.date.fromisoformat(request.form["begin-date"])
-        new_prospect.scheduled_occupancy_start_date = begin_date
+        application.scheduled_occupancy_start_date = begin_date
     except:
         pass
 
     if template_id := request.form.get("doc-id"):
-        new_prospect.template_id = template_id
-        new_prospect.application_status = ApplicationStatus.AWAITING_APPLICANT_SIGNATURE
-    g.db_session.add(new_prospect)
+        application.application_status = ApplicationStatus.AWAITING_APPLICANT_SIGNATURE
+        sig_assign = DBSignatureAssignment(community_id, template_id, None)
+        sig_assign.signer = applicant
+        g.db_session.add(sig_assign)
+    g.db_session.add(application)
     g.db_session.commit()
     return redirect(url_for(".index"))
 
@@ -136,22 +141,13 @@ def add_prospie_post():
 @bp.route("/prospect-details")
 @login_required
 def prospect_details():
-    pr_id = request.args.get("id")
-    if not pr_id:
+    app_id = request.args.get("id")
+    if not app_id:
         return redirect(url_for(".index"))
     community_id = session.get("community_id")
-    stmt = (
-        select(DBProspectiveResident)
-        .where(
-            DBProspectiveResident.community_id == community_id,
-            DBProspectiveResident.id == pr_id,
-        )
-        .options(
-            selectinload(DBProspectiveResident.residence),
-            selectinload(DBProspectiveResident.signature_template).options(
-                defer(DBSignatureTemplate.data)
-            ),
-        )
+    stmt = select(DBOccupancyApplication).where(
+        DBOccupancyApplication.community_id == community_id,
+        DBOccupancyApplication.id == app_id,
     )
     try:
         prospect = g.db_session.execute(stmt).scalars().one()
@@ -171,23 +167,24 @@ def prospect_details():
 def confirm_movein():
     community_id = session.get("community_id")
     stmt = (
-        select(DBProspectiveResident)
+        select(DBAssociate)
+        .join(DBAssociate.occupancy_applications)
         .where(
-            DBProspectiveResident.community_id == community_id,
+            DBOccupancyApplication.community_id == community_id,
         )
         .order_by(
-            DBProspectiveResident.scheduled_occupancy_start_date,
-            DBProspectiveResident.collation_name,
+            DBOccupancyApplication.scheduled_occupancy_start_date,
+            DBAssociate.collation_name,
         )
     )
-    prs = g.db_session.execute(stmt).scalars().all()
+    applicants = g.db_session.execute(stmt).scalars().all()
     main_menu_links = get_admin_menu()
     today = datetime.date.today()
     return render_template(
         "confirm-movement.html",
         action="Move-in",
         default_date=today,
-        users=prs,
+        associates=applicants,
         main_menu_links=main_menu_links,
     )
 
@@ -195,37 +192,32 @@ def confirm_movein():
 @bp.post("/confirm-movein/")
 @login_required
 def confirm_movein_post():
-    pr_id = request.form.get("user-id")
-    if not pr_id:
+    a_id = request.form.get("associate-id")
+    if not a_id:
         return abort(400)
     community_id = session.get("community_id")
-    stmt = select(DBProspectiveResident).where(
-        DBProspectiveResident.community_id == community_id,
-        DBProspectiveResident.id == pr_id,
+    # TODO This isn't rigorous enough filtering; consider when the same person
+    # has multiple applications.
+    stmt = select(DBOccupancyApplication).where(
+        DBOccupancyApplication.community_id == community_id,
+        DBOccupancyApplication.applicant_id == a_id,
     )
     try:
-        prospect: DBProspectiveResident = g.db_session.execute(stmt).scalars().one()
+        application: DBOccupancyApplication = g.db_session.execute(stmt).scalars().one()
     except:
         return abort(404)
     try:
         begin_date = datetime.date.fromisoformat(request.form["date"])
     except:
         return abort(400)
-    if prospect.user_self_id is None:
-        prospect.user_self = DBUser(
-            personal_name=prospect.personal_name,
-            family_name=prospect.family_name,
-        )
-        g.db_session.add(prospect.user_self)
-        g.db_session.flush()
     occupancy = DBResidenceOccupancy(
-        user_id=prospect.user_self.id,
+        occupant_id=a_id,
         community_id=community_id,
-        residence_id=prospect.residence_id,
+        residence_id=application.residence_id,
         date_begun=begin_date,
     )
     g.db_session.add(occupancy)
-    g.db_session.delete(prospect)
+    g.db_session.delete(application)
     g.db_session.commit()
     return redirect(url_for(".index"))
 
@@ -235,21 +227,21 @@ def confirm_movein_post():
 def confirm_moveout():
     community_id = session.get("community_id")
     stmt = (
-        select(DBUser)
-        .join(DBResidenceOccupancy, DBResidenceOccupancy.user_id == DBUser.id)
+        select(DBAssociate)
+        .join(DBResidenceOccupancy, DBResidenceOccupancy.occupant_id == DBAssociate.id)
         .where(
             DBResidenceOccupancy.community_id == community_id,
         )
-        .order_by(DBResidenceOccupancy.date_ended, DBUser.collation_name)
+        .order_by(DBResidenceOccupancy.date_ended, DBAssociate.collation_name)
     )
-    users = g.db_session.execute(stmt).scalars().all()
+    occupants = g.db_session.execute(stmt).scalars().all()
     main_menu_links = get_admin_menu()
     today = datetime.date.today()
     return render_template(
         "confirm-movement.html",
         action="Move-out",
         default_date=today,
-        users=users,
+        associates=occupants,
         main_menu_links=main_menu_links,
     )
 
@@ -257,8 +249,8 @@ def confirm_moveout():
 @bp.post("/confirm-moveout/")
 @login_required
 def confirm_moveout_post():
-    user_id = request.form.get("user-id")
-    if not user_id:
+    a_id = request.form.get("associate-id")
+    if not a_id:
         return abort(400)
     community_id = session.get("community_id")
     # XXX This is probably the best thing to do given the present state of the
@@ -266,7 +258,7 @@ def confirm_moveout_post():
     # mark the occupancy end date and set it to inactive, not delete it.
     g.db_session.execute(
         delete(DBResidenceOccupancy).where(
-            DBResidenceOccupancy.user_id == user_id,
+            DBResidenceOccupancy.occupant_id == a_id,
             DBResidenceOccupancy.community_id == community_id,
         )
     )

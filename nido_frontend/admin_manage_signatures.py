@@ -32,11 +32,11 @@ from sqlalchemy import delete, insert, select, update
 from sqlalchemy.orm import defer, joinedload
 
 from nido_backend.db_models import (
+    DBAssociate,
     DBResidenceOccupancy,
     DBSignatureAssignment,
     DBSignatureRecord,
     DBSignatureTemplate,
-    DBUser,
 )
 
 from .authentication import login_required
@@ -175,10 +175,10 @@ def assign_signatures():
     )
     docs = g.db_session.execute(docs_stmt).scalars().all()
     users_stmt = (
-        select(DBUser)
-        .join(DBResidenceOccupancy, DBResidenceOccupancy.user_id == DBUser.id)
+        select(DBAssociate)
+        .join(DBResidenceOccupancy, DBResidenceOccupancy.occupant_id == DBAssociate.id)
         .where(DBResidenceOccupancy.community_id == community_id)
-        .order_by(DBUser.collation_name)
+        .order_by(DBAssociate.collation_name)
     )
     residents = g.db_session.execute(users_stmt).scalars().all()
     main_menu_links = get_admin_menu()
@@ -200,13 +200,13 @@ def assign_signatures_post():
         insert(DBSignatureAssignment).values(
             template_id=int(doc_id), community_id=community_id
         ),
-        [{"user_id": int(user_id)} for user_id in user_ids],
+        [{"signer_id": int(user_id)} for user_id in user_ids],
     )
     g.db_session.commit()
     return redirect(url_for(".index"))
 
 
-@bp.route("/view-signed/")
+@bp.route("/list-signed")
 @login_required
 def view_all_signed():
     community_id = session.get("community_id")
@@ -215,7 +215,7 @@ def view_all_signed():
         .where(
             DBSignatureRecord.community_id == community_id,
         )
-        .options(joinedload(DBSignatureRecord.user))
+        .options(joinedload(DBSignatureRecord.signer))
     )
     signed_docs = g.db_session.execute(stmt).scalars().all()
     main_menu_links = get_admin_menu()
@@ -226,13 +226,16 @@ def view_all_signed():
     )
 
 
-@bp.route("/view-signed/<doc_name>/")
+@bp.route("/view-signed")
 @login_required
-def view_signed(doc_name: str):
+def view_signed():
     community_id = session.get("community_id")
+    doc_id = request.args.get("id")
+    if not doc_id:
+        return abort(404)
     stmt = select(DBSignatureRecord).where(
         DBSignatureRecord.community_id == community_id,
-        DBSignatureRecord.name == doc_name,
+        DBSignatureRecord.id == doc_id,
     )
     try:
         doc = g.db_session.execute(stmt).scalars().one()

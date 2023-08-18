@@ -37,7 +37,8 @@ from sqlalchemy import delete, select
 from sqlalchemy.orm import defer, joinedload, load_only
 
 from nido_backend.db_models import (
-    DBProspectiveResident,
+    DBAssociate,
+    DBOccupancyApplication,
     DBSignatureAssignment,
     DBSignatureRecord,
     DBSignatureTemplate,
@@ -53,77 +54,76 @@ bp = Blueprint("apply", __name__)
 
 @bp.route("/sign")
 def sign_doc():
-    pr_id = request.args.get("id")
-    if not pr_id:
+    app_id = request.args.get("id")
+    if not app_id:
         return abort(404)
     stmt = (
-        select(DBProspectiveResident)
+        select(DBAssociate)
+        .join(DBOccupancyApplication)
         .where(
-            DBProspectiveResident.id == pr_id,
-            DBProspectiveResident.template_id is not None,
-            DBProspectiveResident.application_status
+            DBOccupancyApplication.id == app_id,
+            DBOccupancyApplication.application_status
             == ApplicationStatus.AWAITING_APPLICANT_SIGNATURE,
-        )
-        .options(
-            joinedload(DBProspectiveResident.residence),
-            joinedload(DBProspectiveResident.signature_template),
         )
     )
     try:
-        result = g.db_session.execute(stmt).scalars().one()
+        applicant = g.db_session.execute(stmt).scalars().one()
     except:
         return abort(404)
-    b64url = f"data:application/pdf;base64," + base64.b64encode(
-        result.signature_template.data
-    ).decode(encoding="utf-8")
+    doc_stmt = (
+        select(DBSignatureTemplate)
+        .select_from(DBSignatureAssignment)
+        .join(DBSignatureAssignment.signature_template)
+        .where(DBSignatureAssignment.signer_id == applicant.id)
+    )
+    try:
+        doc = g.db_session.execute(doc_stmt).scalars().one()
+    except:
+        return abort(404)
+    b64url = f"data:application/pdf;base64," + base64.b64encode(doc.data).decode(
+        encoding="utf-8"
+    )
     return render_template(
         "sign-docs.html",
-        doc=result.signature_template,
+        doc=doc,
         b64url=b64url,
-        user_name=result.full_name,
+        user_name=applicant.full_name,
     )
 
 
 @bp.post("/sign")
 def sign_doc_post():
-    pr_id = request.args.get("id")
-    if not pr_id:
+    app_id = request.args.get("id")
+    if not app_id:
         return abort(404)
-    stmt = (
-        select(DBProspectiveResident)
-        .where(
-            DBProspectiveResident.id == pr_id,
-            DBProspectiveResident.template_id is not None,
-            DBProspectiveResident.application_status
-            == ApplicationStatus.AWAITING_APPLICANT_SIGNATURE,
-        )
-        .options(
-            joinedload(DBProspectiveResident.signature_template),
-        )
+    stmt = select(DBOccupancyApplication).where(
+        DBOccupancyApplication.id == app_id,
+        DBOccupancyApplication.application_status
+        == ApplicationStatus.AWAITING_APPLICANT_SIGNATURE,
     )
     try:
-        result: DBProspectiveResident = g.db_session.execute(stmt).scalars().one()
+        app = g.db_session.execute(stmt).scalars().one()
     except:
         return abort(404)
+    doc_stmt = (
+        select(DBSignatureTemplate)
+        .select_from(DBSignatureAssignment)
+        .join(DBSignatureAssignment.signature_template)
+        .where(DBSignatureAssignment.signer_id == app.applicant_id)
+    )
+    try:
+        doc = g.db_session.execute(doc_stmt).scalars().one()
+    except:
+        return abort(404)
+
     try:
         user_name = request.form["user-name"]
     except:
         return abort(403)
-
     signer = getattr(g, "cms_signer", None)
     if signer is None:
         return abort(500)
     tsa_client = getattr(g, "tsa_client", None)
-
-    if result.user_self_id is None:
-        result.user_self = DBUser(
-            personal_name=result.personal_name,
-            family_name=result.family_name,
-        )
-        g.db_session.add(result.user_self)
-        g.db_session.flush()
-
-    doc = result.signature_template
 
     pdf_writer = IncrementalPdfFileWriter(io.BytesIO(doc.data))
 
@@ -150,16 +150,23 @@ def sign_doc_post():
         existing_fields_only=True,
         in_place=True,
     )
-    result.application_status = ApplicationStatus.AWAITING_MOVEIN
-    g.db_session.add(result)
+    app.application_status = ApplicationStatus.AWAITING_MOVEIN
+    g.db_session.add(app)
     record = DBSignatureRecord(
-        community_id=result.community_id,
-        user_id=result.user_self_id,
+        community_id=app.community_id,
+        signer_id=app.applicant.id,
         data=out.read(),
         name=doc.name,
         signature_date=datetime.date.today(),
     )
     g.db_session.add(record)
+    g.db_session.execute(
+        delete(DBSignatureAssignment).where(
+            DBSignatureAssignment.community_id == app.community_id,
+            DBSignatureAssignment.signer_id == app.applicant.id,
+            DBSignatureAssignment.template_id == doc.id,
+        )
+    )
     g.db_session.commit()
     session["record_id"] = record.id
     return redirect(url_for(".view"))

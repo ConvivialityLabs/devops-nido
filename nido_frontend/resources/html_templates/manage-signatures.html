@@ -32,7 +32,7 @@
     </tr></thead>
     {% for sig in pending_sigs %}
     <tr>
-      <td>{{sig.user.full_name}}</td>
+      <td>{{sig.signer.full_name}}</td>
       <td>{{sig.signature_template.name}}</td>
     </tr>
     {% endfor %}

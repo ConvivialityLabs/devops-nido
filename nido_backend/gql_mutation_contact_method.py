@@ -66,7 +66,7 @@ class ContactMethodMutations:
 
         au = info.context.active_user
         for i in input:
-            new_contact = DBEmailContact(user=au, email=i.email)
+            new_contact = DBEmailContact(user_id=au.id, email=i.email)
             info.context.db_session.add(new_contact)
             try:
                 info.context.db_session.commit()
