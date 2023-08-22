@@ -127,6 +127,11 @@ def add_prospie_post():
         application.scheduled_occupancy_start_date = begin_date
     except:
         pass
+    try:
+        end_date = datetime.date.fromisoformat(request.form["end-date"])
+        application.scheduled_occupancy_end_date = end_date
+    except:
+        pass
 
     if template_id := request.form.get("doc-id"):
         application.application_status = ApplicationStatus.AWAITING_APPLICANT_SIGNATURE
@@ -215,6 +220,7 @@ def confirm_movein_post():
         community_id=community_id,
         residence_id=application.residence_id,
         date_begun=begin_date,
+        date_ended=application.scheduled_occupancy_end_date,
     )
     g.db_session.add(occupancy)
     g.db_session.delete(application)

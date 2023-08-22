@@ -306,6 +306,9 @@ class DBOccupancyApplication(Base, DBNode):
     scheduled_occupancy_start_date: Mapped[Optional[datetime.date]] = mapped_column(
         default=None
     )
+    scheduled_occupancy_end_date: Mapped[Optional[datetime.date]] = mapped_column(
+        default=None
+    )
 
     community: Mapped[DBCommunity] = relationship(
         back_populates="occupancy_applications", init=False, repr=False
