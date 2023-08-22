@@ -87,6 +87,12 @@ class DBCommunity(Base, DBNode):
     residences: Mapped[List["DBResidence"]] = relationship(
         back_populates="community", init=False, repr=False
     )
+    occupancies: Mapped[List["DBResidenceOccupancy"]] = relationship(
+        back_populates="community",
+        viewonly=True,
+        init=False,
+        repr=False,
+    )
     recurring_billing_charges: Mapped[List["DBBillingRecurringCharge"]] = relationship(
         back_populates="community", viewonly=True, init=False, repr=False
     )
@@ -139,6 +145,12 @@ class DBAssociate(Base, DBNode):
         secondary="residence_occupancy",
         viewonly=True,
         back_populates="occupants",
+        init=False,
+        repr=False,
+    )
+    occupancies: Mapped[List["DBResidenceOccupancy"]] = relationship(
+        back_populates="occupant",
+        viewonly=True,
         init=False,
         repr=False,
     )
@@ -195,6 +207,12 @@ class DBResidence(Base, DBNode):
     community: Mapped[DBCommunity] = relationship(
         back_populates="residences", init=False, repr=False
     )
+    occupancies: Mapped[List["DBResidenceOccupancy"]] = relationship(
+        back_populates="residence",
+        viewonly=True,
+        init=False,
+        repr=False,
+    )
     occupants: Mapped[List[DBAssociate]] = relationship(
         secondary="residence_occupancy",
         back_populates="residences",
@@ -220,9 +238,10 @@ class DBResidence(Base, DBNode):
     )
 
 
-class DBResidenceOccupancy(Base):
+class DBResidenceOccupancy(Base, DBNode):
     __tablename__ = "residence_occupancy"
     __table_args__ = (
+        sql_schema.UniqueConstraint("community_id", "residence_id", "occupant_id"),
         sql_schema.ForeignKeyConstraint(
             ["residence_id", "community_id"],
             ["residence.id", "residence.community_id"],
@@ -241,12 +260,28 @@ class DBResidenceOccupancy(Base):
     # if the deletion is intentional. Same reason for user_id RESTRICT.
 
     community_id: Mapped[int] = mapped_column(
-        ForeignKey("community.id", ondelete="CASCADE"), primary_key=True
+        ForeignKey("community.id", ondelete="CASCADE")
     )
-    residence_id: Mapped[int] = mapped_column(primary_key=True)
-    occupant_id: Mapped[int] = mapped_column(primary_key=True)
+    residence_id: Mapped[int]
+    occupant_id: Mapped[int]
     date_begun: Mapped[Optional[datetime.date]] = mapped_column(default=None)
     date_ended: Mapped[Optional[datetime.date]] = mapped_column(default=None)
+
+    community: Mapped[DBCommunity] = relationship(
+        back_populates="occupancies", viewonly=True, init=False, repr=False
+    )
+    occupant: Mapped[DBAssociate] = relationship(
+        back_populates="occupancies",
+        viewonly=True,
+        init=False,
+        repr=False,
+    )
+    residence: Mapped[DBResidence] = relationship(
+        back_populates="occupancies",
+        viewonly=True,
+        init=False,
+        repr=False,
+    )
 
 
 class DBUser(Base, DBNode):
