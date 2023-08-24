@@ -37,6 +37,7 @@ from .db_models import (
     DBGroupMembership,
     DBNode,
     DBResidence,
+    DBResidenceOccupancy,
     DBRight,
     DBUser,
 )
@@ -126,6 +127,12 @@ class Community(Node[DBCommunity]):
         )
 
     @strawberry.field
+    def occupancies(self) -> Optional[Connection["ResidenceOccupancy"]]:
+        return Connection(
+            edges=[Edge(node=ResidenceOccupancy(db=a)) for a in self.db.occupancies]
+        )
+
+    @strawberry.field
     def billing_charges(
         self,
         info: Info,
@@ -211,6 +218,12 @@ class Associate(Node[DBAssociate]):
         )
 
     @strawberry.field
+    def occupancies(self) -> Optional[Connection["ResidenceOccupancy"]]:
+        return Connection(
+            edges=[Edge(node=ResidenceOccupancy(db=a)) for a in self.db.occupancies]
+        )
+
+    @strawberry.field
     def groups(self, info: Info) -> Optional[List["Group"]]:
         return [Group(db=g) for g in self.db.groups]
 
@@ -244,6 +257,12 @@ class Residence(Node[DBResidence]):
         return Community(db=self.db.community)
 
     @strawberry.field
+    def occupancies(self) -> Optional[Connection["ResidenceOccupancy"]]:
+        return Connection(
+            edges=[Edge(node=ResidenceOccupancy(db=a)) for a in self.db.occupancies]
+        )
+
+    @strawberry.field
     def occupants(self) -> Optional[Connection["Associate"]]:
         return Connection(edges=[Edge(node=Associate(db=a)) for a in self.db.occupants])
 
@@ -265,6 +284,27 @@ class Residence(Node[DBResidence]):
     @strawberry.field
     def issues(self, info: Info) -> Optional[List["Issue"]]:
         return info.context.dev_issue_list
+
+
+@strawberry.type
+class ResidenceOccupancy(Node[DBResidenceOccupancy]):
+    dbtype = DBResidenceOccupancy
+
+    @strawberry.field
+    def date_begun(self) -> Optional[datetime.date]:
+        return self.db.date_begun
+
+    @strawberry.field
+    def date_ended(self) -> Optional[datetime.date]:
+        return self.db.date_ended
+
+    @strawberry.field
+    def occupant(self) -> Optional[Associate]:
+        return Associate(db=self.db.occupant)
+
+    @strawberry.field
+    def residence(self) -> Optional[Residence]:
+        return Residence(db=self.db.residence)
 
 
 # TODO This is just a development mockup to try out different Issue designs.
@@ -321,6 +361,19 @@ class User(Node[DBUser]):
             stmt = stmt.where(DBAssociate.community_id == self.reference_community_id)
         result = info.context.db_session.execute(stmt).scalars()
         return Connection(edges=[Edge(node=Residence(db=r)) for r in result])
+
+    @strawberry.field
+    def occupancies(self, info: Info) -> Optional[Connection["ResidenceOccupancy"]]:
+        stmt = (
+            select(DBResidenceOccupancy)
+            .select_from(DBAssociate)
+            .join(DBAssociate.occupancies)
+            .where(DBAssociate.user_id == self.db.id)
+        )
+        if self.reference_community_id:
+            stmt = stmt.where(DBAssociate.community_id == self.reference_community_id)
+        result = info.context.db_session.execute(stmt).scalars()
+        return Connection(edges=[Edge(node=ResidenceOccupancy(db=r)) for r in result])
 
     @strawberry.field
     def groups(
