@@ -1,7 +1,5 @@
 /* Copyright (c) 2021 by Maxim Konoval (https://codepen.io/frontendmax/pen/RazXVb)
  * Released under MIT license, see link above */
-$prim: #53e3a6;
-$offwhite: #fbfdff;
 
 body#login {
   background: url('/static/bg.svg') no-repeat center;
@@ -13,8 +11,7 @@ body#login {
 
   main {
     margin-bottom: 20px;
-    background: $offwhite;
-    color: #3b4465;
+    background: $off-white;
     width: 300px;
     padding: 25px;
     box-sizing: border-box;

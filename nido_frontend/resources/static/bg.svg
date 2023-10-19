@@ -3,7 +3,7 @@
 <svg version="1.1" xmlns="http://www.w3.org/2000/svg">
   <defs>
     <style type="text/css"><![CDATA[
-    svg {background: linear-gradient(to bottom right, #50a3a2 0%, #53e3a6 100%);}
+    svg {background: linear-gradient(to bottom right, #ffc107 0%, #ff5722 100%);}
     ]]></style>
   </defs>
   <rect width="40px" height="40px" x="10%" y="100%" fill="white" fill-opacity="0.15">

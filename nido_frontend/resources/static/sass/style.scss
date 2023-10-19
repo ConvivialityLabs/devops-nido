@@ -1,5 +1,14 @@
 @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300&display=swap');
 
+$primary: #ffc107;
+$primary-dark: #ffa000;
+$primary-light: #ffecb3;
+$accent: #ff5722;
+$text: #212121;
+$text-secondary: #757575;
+$divider: #bdbdbd;
+$off-white: #fbfdff;
+
 html {
   height: 100%;
   font-size: 62.5%;
@@ -10,6 +19,8 @@ html {
 body {
   margin: 0;
   height: 100%;
+  color: $text;
+  background-color: $off-white;
 }
 
 h1 {
