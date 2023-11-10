@@ -15,7 +15,7 @@ this code, but you are required to make your modifications publicly availible.
 
 Nido is in a very early stage of development and only availible as a `git` repository;
 there are no source or binary releases at present. To install from git, make sure you
-have Python version 3.9 or greater installed. After cloning the repo, you can get up
+have Python version 3.10 or greater installed. After cloning the repo, you can get up
 and running in three steps (all instructions are for macOS or Linux):
 
  - If you have [Python Poetry](https://python-poetry.org/) on your system, you can run
