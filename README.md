@@ -1,7 +1,7 @@
-# Nido Housing Management Software
+# Nido Property Management System
 
 Nido is a free & open source web application that makes it easier for
-multifamily housing communities, such as condominimums, neighborhood
+multifamily housing communities, such as condominiums, neighborhood
 homeowners associations, housing cooperatives, ecovillages, etc. to manage
 their affairs online.
 
@@ -9,11 +9,11 @@ their affairs online.
 
 Nido is licensed under the Affero GNU Public license, which can be found in
 this repository. In short, it means that you can freely use, modify, and share
-this code, but you are required to make your modifications publicly availible.
+this code, but you are required to make your modifications publicly available.
 
 ## Development Setup
 
-Nido is in a very early stage of development and only availible as a `git` repository;
+Nido is in a very early stage of development and only available as a `git` repository;
 there are no source or binary releases at present. To install from git, make sure you
 have Python version 3.10 or greater installed. After cloning the repo, you can get up
 and running in three steps (all instructions are for macOS or Linux):

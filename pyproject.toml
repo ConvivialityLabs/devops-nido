@@ -1,7 +1,7 @@
 [tool.poetry]
 name = "nido"
 version = "0.0.1"
-description = "Multifamily housing management platform"
+description = "Open source multifamily property management platform"
 authors = ["John Arnold <code@iohannes.us>"]
 license = "AGPL-3.0-or-later"
 readme = "README.md"
